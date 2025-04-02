@@ -35,6 +35,23 @@ services:
     networks:
       - lumi-network
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: lumi-jaeger
+    ports:
+      - "6831:6831/udp"  # jaeger-agent thrift compact
+      - "6832:6832/udp"  # jaeger-agent thrift binary
+      - "5778:5778"      # jaeger-agent configs
+      - "16686:16686"    # jaeger-query
+      - "4317:4317"      # OTLP gRPC
+      - "4318:4318"      # OTLP HTTP
+      - "14250:14250"    # jaeger-agent HTTP
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - lumi-network
+
 networks:
   lumi-network:
     driver: bridge
