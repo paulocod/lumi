@@ -76,4 +76,4 @@
 # Misc
 **/*.pem
 **/*.cert
-**/*.key
+**/*technical-architecture.md
