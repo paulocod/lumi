@@ -13,7 +13,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Lumi API')
-    .setDescription('API do projeto Lumi')
+    .setDescription('API para gerenciamento de faturas de energia')
     .setVersion('1.0')
     .addTag('health')
     .addBearerAuth()
@@ -42,4 +42,4 @@ async function bootstrap() {
   );
 }
 
-bootstrap();
+void bootstrap();
