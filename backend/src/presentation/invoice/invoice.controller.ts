@@ -11,6 +11,7 @@ import {
   UploadedFile,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { InvoiceService } from '../../application/services/invoice.service';
 import { Invoice } from '../../domain/invoice/entities/invoice.entity';
@@ -34,9 +35,15 @@ export class InvoiceController {
 
   @Post('upload')
   @ApiOperation({ summary: 'Upload de fatura via URL' })
+  @ApiBody({ type: UploadInvoiceUrlDto })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Fatura criada com sucesso',
+    type: Invoice,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'URL inválida ou PDF não encontrado',
   })
   @HttpCode(HttpStatus.CREATED)
   async uploadInvoiceUrl(@Body() dto: UploadInvoiceUrlDto) {
@@ -57,6 +64,8 @@ export class InvoiceController {
         file: {
           type: 'string',
           format: 'binary',
+          description: 'Arquivo PDF da fatura',
+          example: 'fatura.pdf',
         },
       },
     },
@@ -64,14 +73,50 @@ export class InvoiceController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Fatura criada com sucesso',
+    type: Invoice,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Arquivo inválido ou não é um PDF',
   })
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.CREATED)
   async uploadInvoiceBuffer(@UploadedFile() file: Express.Multer.File) {
+    console.log('=== Início do Upload de Buffer ===');
+    console.log('File recebido:', {
+      filename: file?.originalname,
+      mimetype: file?.mimetype,
+      size: file?.size,
+      bufferType: file?.buffer ? typeof file.buffer : 'undefined',
+      isBuffer: file?.buffer ? Buffer.isBuffer(file.buffer) : false,
+    });
+
+    if (!file || !file.buffer) {
+      console.log('Erro: Nenhum arquivo ou buffer recebido');
+      throw new BadRequestException('Nenhum arquivo enviado');
+    }
+
+    if (file.mimetype !== 'application/pdf') {
+      console.log('Erro: Tipo de arquivo inválido:', file.mimetype);
+      throw new BadRequestException('O arquivo deve ser um PDF');
+    }
+
+    if (!Buffer.isBuffer(file.buffer)) {
+      console.log('Erro: Buffer inválido');
+      throw new BadRequestException('O buffer do arquivo não é válido');
+    }
+
+    console.log('Buffer válido, criando PdfSource');
     const pdfSource: PdfSource = {
       type: 'buffer',
       data: file.buffer,
     };
+    console.log('PdfSource criado:', {
+      type: pdfSource.type,
+      dataType: typeof pdfSource.data,
+      isBuffer: Buffer.isBuffer(pdfSource.data),
+    });
+
     return this.invoiceService.uploadInvoice(pdfSource);
   }
 

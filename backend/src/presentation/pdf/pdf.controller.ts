@@ -65,6 +65,10 @@ export class PdfController {
       throw new BadRequestException('O arquivo deve ser um PDF');
     }
 
+    if (!Buffer.isBuffer(file.buffer)) {
+      throw new BadRequestException('O buffer do arquivo não é válido');
+    }
+
     return this.pdfService.extractInvoiceFromPdf(file.buffer);
   }
 }
