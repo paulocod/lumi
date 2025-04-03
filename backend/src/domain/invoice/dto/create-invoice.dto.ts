@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { InvoiceStatus } from '../entities/invoice.entity';
+import { InvoiceStatus } from '../enums/invoice-status.enum';
 
 export class CreateInvoiceDto {
   @ApiProperty({
@@ -95,9 +95,9 @@ export class CreateInvoiceDto {
 
   @ApiProperty({
     description: 'Status do processamento da fatura',
-    example: InvoiceStatus.PROCESSED,
+    example: InvoiceStatus.COMPLETED,
     enum: InvoiceStatus,
-    default: InvoiceStatus.PROCESSED,
+    default: InvoiceStatus.COMPLETED,
   })
   @IsEnum(InvoiceStatus)
   @IsOptional()

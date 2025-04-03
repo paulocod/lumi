@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { CreateInvoiceDto } from '../invoice/dto/create-invoice.dto';
 import { LoggerService } from '../../config/logger';
 import { PdfCacheService } from './services/pdf-cache.service';

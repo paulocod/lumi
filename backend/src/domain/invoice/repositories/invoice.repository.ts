@@ -1,4 +1,5 @@
-import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
+import { Invoice } from '../entities/invoice.entity';
+import { InvoiceStatus } from '../enums/invoice-status.enum';
 
 export interface IInvoiceRepository {
   create(invoice: Invoice): Promise<Invoice>;

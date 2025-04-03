@@ -2,11 +2,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IInvoiceRepository } from '../../../domain/invoice/repositories/invoice.repository';
-import {
-  Invoice,
-  InvoiceStatus,
-} from '../../../domain/invoice/entities/invoice.entity';
+import { Invoice } from '../../../domain/invoice/entities/invoice.entity';
 import { Prisma } from '@prisma/client';
+import { InvoiceStatus } from '@/domain/invoice/enums/invoice-status.enum';
 
 type InvoiceWithRelations = Prisma.InvoiceGetPayload<Record<string, never>>;
 
@@ -27,7 +25,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         compensatedEnergyValue: invoice.compensatedEnergyValue,
         publicLightingValue: invoice.publicLightingValue,
         pdfUrl: invoice.pdfUrl || null,
-        status: invoice.status || InvoiceStatus.PROCESSED,
+        status: invoice.status || InvoiceStatus.COMPLETED,
       },
     });
 

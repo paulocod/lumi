@@ -8,8 +8,6 @@ import {
 } from '@nestjs/terminus';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoggerService } from '../config/logger';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { HealthService } from './health.service';
 
 @Controller('health')
 export class HealthController {

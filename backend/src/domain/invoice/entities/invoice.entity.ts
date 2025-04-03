@@ -71,7 +71,7 @@ export class Invoice {
 
   @ApiProperty({
     description: 'Status do processamento da fatura',
-    example: InvoiceStatus.PROCESSED,
+    example: InvoiceStatus.COMPLETED,
     enum: InvoiceStatus,
   })
   status: InvoiceStatus;
