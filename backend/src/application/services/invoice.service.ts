@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IInvoiceRepository } from '../../domain/invoice/repositories/invoice.repository';
 import {
@@ -22,17 +20,23 @@ export class InvoiceService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async uploadInvoice(
-    pdf: PdfSource,
-  ): Promise<{ invoiceId: string; status: string }> {
-    try {
-      this.logger.log('Iniciando upload de fatura');
+  async uploadInvoice(pdf: PdfSource): Promise<Invoice> {
+    if (pdf.type === 'buffer') {
+      if (!Buffer.isBuffer(pdf.data)) {
+        throw new Error('O buffer fornecido não é válido');
+      }
+      const bufferArray = Array.from(pdf.data);
+      pdf = {
+        type: 'buffer',
+        data: bufferArray,
+      };
+    }
 
-      const now = new Date();
-      const invoice = new Invoice({
+    const invoice = await this.invoiceRepository.create(
+      new Invoice({
         status: InvoiceStatus.PENDING,
         clientNumber: '',
-        referenceMonth: now,
+        referenceMonth: new Date(),
         electricityQuantity: 0,
         electricityValue: 0,
         sceeQuantity: 0,
@@ -40,28 +44,17 @@ export class InvoiceService {
         compensatedEnergyQuantity: 0,
         compensatedEnergyValue: 0,
         publicLightingValue: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
 
-      const createdInvoice = await this.invoiceRepository.create(invoice);
-      if (!createdInvoice.id) {
-        throw new Error('Fatura criada sem ID');
-      }
+    this.eventEmitter.emit('invoice.created', {
+      invoiceId: invoice.id,
+      pdf,
+    } as InvoiceCreatedEvent);
 
-      this.eventEmitter.emit('invoice.created', {
-        invoiceId: createdInvoice.id,
-        pdf,
-      } as InvoiceCreatedEvent);
-
-      return {
-        invoiceId: createdInvoice.id,
-        status: createdInvoice.status,
-      };
-    } catch (error) {
-      this.logger.error('Erro ao fazer upload da fatura', error);
-      throw error;
-    }
+    return invoice;
   }
 
   async getInvoiceStatus(

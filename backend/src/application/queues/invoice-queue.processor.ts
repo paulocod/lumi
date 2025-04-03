@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/await-thenable */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 import {
   Process,
   Processor,
@@ -23,6 +22,11 @@ import {
   PdfSource,
 } from '@/shared/events/invoice.events';
 import { PdfService } from '@/domain/pdf/pdf.service';
+import { ConfigService } from '@nestjs/config';
+import {
+  PdfProcessingError,
+  QueueProcessingError,
+} from '@/shared/errors/application.errors';
 
 interface InvoiceJobData {
   pdf: PdfSource;
@@ -32,37 +36,22 @@ interface InvoiceJobData {
 @Processor('invoice-processing')
 export class InvoiceQueueProcessor implements OnModuleInit {
   private readonly logger = new Logger(InvoiceQueueProcessor.name);
-  private readonly PDF_DOWNLOAD_TIMEOUT = 30000;
+  private readonly downloadTimeout: number;
 
   constructor(
     private prisma: PrismaService,
     private pdfService: PdfService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly configService: ConfigService,
     @InjectQueue('invoice-processing')
     private invoiceQueue: Queue<InvoiceJobData>,
   ) {
-    this.logger.log('InvoiceQueueProcessor construído');
+    this.downloadTimeout =
+      this.configService.get<number>('pdf.downloadTimeout') || 30000;
   }
 
-  async onModuleInit() {
+  onModuleInit() {
     this.logger.log('InvoiceQueueProcessor inicializado');
-    this.logger.debug('Configuração do processador:', {
-      name: 'invoice-processing',
-      processName: 'process-invoice',
-    });
-
-    try {
-      const workers = await this.invoiceQueue.getWorkers();
-      this.logger.debug(`Número de workers: ${workers.length}`);
-      workers.forEach((worker) => {
-        this.logger.debug(`Worker: ${worker.id}`);
-      });
-    } catch (error) {
-      this.logger.error(
-        'Erro ao verificar workers:',
-        error instanceof Error ? error.stack : error,
-      );
-    }
   }
 
   private emitEvent<T>(eventName: string, payload: T): void {
@@ -70,7 +59,7 @@ export class InvoiceQueueProcessor implements OnModuleInit {
       this.eventEmitter.emit(eventName, payload);
     } catch (error) {
       this.logger.error(`Erro ao emitir evento ${eventName}:`, error);
-      throw error;
+      throw new QueueProcessingError(`Erro ao emitir evento ${eventName}`);
     }
   }
 
@@ -94,7 +83,7 @@ export class InvoiceQueueProcessor implements OnModuleInit {
         `Erro ao criar job para fatura: ${event.invoiceId}`,
         error,
       );
-      throw error;
+      throw new QueueProcessingError('Erro ao criar job de processamento');
     }
   }
 
@@ -108,13 +97,6 @@ export class InvoiceQueueProcessor implements OnModuleInit {
     this.logger.debug(
       `Processando job ${job.id} para fatura: ${job.data.invoiceId}`,
     );
-    this.logger.debug('Dados do job:', {
-      id: job.id,
-      name: job.name,
-      data: job.data,
-      timestamp: job.timestamp,
-      attempts: job.attemptsMade,
-    });
   }
 
   @OnQueueCompleted()
@@ -139,15 +121,14 @@ export class InvoiceQueueProcessor implements OnModuleInit {
 
   @Process('process-invoice')
   async handleInvoiceProcessing(job: Job<InvoiceJobData>) {
-    this.logger.log(
-      `Iniciando processamento do job ${job.id} para fatura: ${job.data.invoiceId}`,
-    );
-    this.logger.debug('Dados do job:', {
-      id: job.id,
+    console.log('=== Início do Processamento do Job ===');
+    console.log('Job data:', {
+      jobId: job.id,
       invoiceId: job.data.invoiceId,
       pdfType: job.data.pdf.type,
-      attempts: job.attemptsMade,
-      timestamp: job.timestamp,
+      pdfDataType: typeof job.data.pdf.data,
+      isBuffer: Buffer.isBuffer(job.data.pdf.data),
+      isArray: Array.isArray(job.data.pdf.data),
     });
 
     try {
@@ -156,14 +137,12 @@ export class InvoiceQueueProcessor implements OnModuleInit {
       });
 
       if (!invoice) {
-        this.logger.error(`Fatura não encontrada: ${job.data.invoiceId}`);
-        throw new Error(`Fatura não encontrada: ${job.data.invoiceId}`);
+        console.log('Erro: Fatura não encontrada');
+        throw new PdfProcessingError(
+          `Fatura não encontrada: ${job.data.invoiceId}`,
+        );
       }
 
-      this.logger.debug(`Status atual da fatura: ${invoice.status}`);
-      this.logger.debug(
-        `Atualizando status da fatura para PROCESSING: ${job.data.invoiceId}`,
-      );
       await this.prisma.invoice.update({
         where: { id: job.data.invoiceId },
         data: { status: InvoiceStatus.PROCESSING },
@@ -171,34 +150,40 @@ export class InvoiceQueueProcessor implements OnModuleInit {
 
       let pdfBuffer: Buffer;
       if (job.data.pdf.type === 'url') {
-        this.logger.debug(`Baixando PDF da URL: ${job.data.pdf.data}`);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(
-          () => controller.abort(),
-          this.PDF_DOWNLOAD_TIMEOUT,
-        );
-
-        try {
-          const response = await fetch(job.data.pdf.data, {
-            signal: controller.signal,
-          });
-          if (!response.ok) {
-            throw new Error(`Falha ao baixar o PDF: ${response.statusText}`);
-          }
-          const arrayBuffer = await response.arrayBuffer();
-          pdfBuffer = Buffer.from(arrayBuffer);
-        } finally {
-          clearTimeout(timeoutId);
+        console.log('Processando PDF via URL');
+        if (typeof job.data.pdf.data !== 'string') {
+          throw new PdfProcessingError('URL do PDF deve ser uma string');
         }
+        pdfBuffer = await this.downloadPdfFromUrl(job.data.pdf.data);
       } else {
-        pdfBuffer = job.data.pdf.data;
+        console.log('Processando PDF via Buffer');
+        const bufferData = job.data.pdf.data;
+        console.log('Buffer data:', {
+          type: typeof bufferData,
+          isBuffer: Buffer.isBuffer(bufferData),
+          isArray: Array.isArray(bufferData),
+        });
+
+        if (Buffer.isBuffer(bufferData)) {
+          console.log('Usando buffer existente');
+          pdfBuffer = bufferData;
+        } else if (Array.isArray(bufferData)) {
+          console.log('Convertendo array para buffer');
+          pdfBuffer = Buffer.from(bufferData);
+        } else {
+          console.log('Erro: Buffer inválido');
+          throw new PdfProcessingError('O buffer fornecido não é válido');
+        }
       }
 
-      this.logger.debug('Extraindo dados da fatura');
-      const invoiceData =
-        await this.pdfService.extractInvoiceFromPdf(pdfBuffer);
+      console.log('Buffer final:', {
+        isBuffer: Buffer.isBuffer(pdfBuffer),
+        length: pdfBuffer.length,
+        type: typeof pdfBuffer,
+      });
 
-      this.logger.debug('Dados extraídos:', invoiceData);
+      const invoiceData = await this.pdfService.extractInvoiceFromPdf(pdfBuffer);
+
       await this.prisma.invoice.update({
         where: { id: job.data.invoiceId },
         data: {
@@ -238,6 +223,31 @@ export class InvoiceQueueProcessor implements OnModuleInit {
       await this.emitEvent('invoice.processed', event);
 
       throw error;
+    }
+  }
+
+  private async downloadPdfFromUrl(url: string): Promise<Buffer> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      this.downloadTimeout,
+    );
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new PdfProcessingError(
+          `Falha ao baixar o PDF: ${response.statusText}`,
+        );
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 }

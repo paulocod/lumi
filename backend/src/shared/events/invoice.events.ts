@@ -1,12 +1,7 @@
-export type PdfSource =
-  | {
-      type: 'buffer';
-      data: Buffer;
-    }
-  | {
-      type: 'url';
-      data: string;
-    };
+export type PdfSource = {
+  type: 'buffer' | 'url';
+  data: string | Buffer | number[];
+};
 
 export interface InvoiceCreatedEvent {
   invoiceId: string;
