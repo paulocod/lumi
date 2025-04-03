@@ -5,8 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from '../../presentation/auth/auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { PrismaModule } from '../../prisma/prisma.module';
 import { LoginThrottlerGuard } from './guards/login-throttler.guard';
+import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
   imports: [

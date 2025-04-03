@@ -1,10 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from '../../presentation/auth/dto/login.dto';
 import { RegisterDto } from '../../presentation/auth/dto/register.dto';
 import { User } from '@prisma/client';
+import { PrismaService } from 'prisma/prisma.service';
 
 type UserWithoutPassword = Omit<User, 'password'>;
 

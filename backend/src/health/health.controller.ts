@@ -6,8 +6,8 @@ import {
   MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
-import { PrismaService } from '../prisma/prisma.service';
 import { LoggerService } from '../config/logger';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Controller('health')
 export class HealthController {
