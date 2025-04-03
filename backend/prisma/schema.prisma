@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -18,24 +23,22 @@ model User {
 }
 
 model Invoice {
-  id                         String   @id @default(uuid())
-  clientNumber               String
-  referenceMonth             DateTime
-  electricityQuantity        Float
-  electricityValue           Float
-  sceeQuantity               Float
-  sceeValue                  Float
-  compensatedEnergyQuantity  Float
-  compensatedEnergyValue     Float
-  publicLightingContribution Float
-  createdAt                  DateTime @default(now())
-  updatedAt                  DateTime @updatedAt
+  id                        String   @id @default(uuid())
+  clientNumber              String
+  referenceMonth            DateTime
+  electricityQuantity       Float
+  electricityValue          Float
+  sceeQuantity              Float
+  sceeValue                 Float
+  compensatedEnergyQuantity Float
+  compensatedEnergyValue    Float
+  publicLightingValue       Float
+  pdfUrl                    String?
+  status                    String   @default("PROCESSED")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 
   @@index([clientNumber])
   @@index([referenceMonth])
-}
-
-enum Role {
-  USER
-  ADMIN
+  @@index([status])
 }
