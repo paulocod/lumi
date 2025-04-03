@@ -15,11 +15,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Job, Queue } from 'bull';
 import { PrismaService } from '@/prisma/prisma.service';
-import { InvoiceStatus } from '@/domain/invoice/entities/invoice.entity';
 import {
   InvoiceCreatedEvent,
   InvoiceProcessedEvent,
-  PdfSource,
 } from '@/shared/events/invoice.events';
 import { PdfService } from '@/domain/pdf/pdf.service';
 import { ConfigService } from '@nestjs/config';
@@ -27,6 +25,8 @@ import {
   PdfProcessingError,
   QueueProcessingError,
 } from '@/shared/errors/application.errors';
+import { PdfSource } from '@/domain/pdf/types/pdf-types';
+import { InvoiceStatus } from '@/domain/invoice/enums/invoice-status.enum';
 
 interface InvoiceJobData {
   pdf: PdfSource;
@@ -182,13 +182,14 @@ export class InvoiceQueueProcessor implements OnModuleInit {
         type: typeof pdfBuffer,
       });
 
-      const invoiceData = await this.pdfService.extractInvoiceFromPdf(pdfBuffer);
+      const invoiceData =
+        await this.pdfService.extractInvoiceFromPdf(pdfBuffer);
 
       await this.prisma.invoice.update({
         where: { id: job.data.invoiceId },
         data: {
           ...invoiceData,
-          status: InvoiceStatus.PROCESSED,
+          status: InvoiceStatus.COMPLETED,
         },
       });
 
@@ -210,7 +211,7 @@ export class InvoiceQueueProcessor implements OnModuleInit {
       await this.prisma.invoice.update({
         where: { id: job.data.invoiceId },
         data: {
-          status: InvoiceStatus.ERROR,
+          status: InvoiceStatus.FAILED,
           error: error instanceof Error ? error.message : 'Erro desconhecido',
         },
       });

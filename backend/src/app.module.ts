@@ -4,7 +4,7 @@ import { ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
-import { LoggerModule } from './config/logger.module';
+import { LoggerModule } from './config/logger';
 import { RedisCacheModule } from './config/cache.module';
 import { InvoiceModule } from './domain/invoice/invoice.module';
 import { PdfModule } from './domain/pdf/pdf.module';

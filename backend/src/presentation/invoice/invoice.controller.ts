@@ -26,7 +26,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadInvoiceUrlDto } from '@/domain/invoice/dto/upload-invoice.dto';
-import { PdfSource } from '@/shared/events/invoice.events';
+import { PdfSource } from '@/domain/pdf/types/pdf-types';
 
 @ApiTags('invoices')
 @Controller('invoices')

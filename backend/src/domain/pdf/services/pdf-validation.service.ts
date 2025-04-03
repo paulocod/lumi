@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LoggerService } from '../../../config/logger.service';
+import { LoggerService } from '../../../config/logger';
 import { PdfValidationError } from '@/shared/errors/application.errors';
 import { CreateInvoiceDto } from '../../invoice/dto/create-invoice.dto';
 import {

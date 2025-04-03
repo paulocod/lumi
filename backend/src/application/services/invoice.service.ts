@@ -1,13 +1,12 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IInvoiceRepository } from '../../domain/invoice/repositories/invoice.repository';
-import {
-  Invoice,
-  InvoiceStatus,
-} from '../../domain/invoice/entities/invoice.entity';
+import { Invoice } from '../../domain/invoice/entities/invoice.entity';
+import { InvoiceStatus } from '../../domain/invoice/enums/invoice-status.enum';
 import { INVOICE_REPOSITORY } from '../../domain/invoice/invoice.tokens';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InvoiceCreatedEvent, PdfSource } from '@/shared/events/invoice.events';
-import { PdfService } from '@/domain/pdf/pdf.service';
+import { InvoiceCreatedEvent } from '../../shared/events/invoice.events';
+import { PdfService } from '../../domain/pdf/pdf.service';
+import { PdfSource } from '@/domain/pdf/types/pdf-types';
 
 @Injectable()
 export class InvoiceService {

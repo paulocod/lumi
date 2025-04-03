@@ -3,9 +3,9 @@ import { Injectable, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { createHash } from 'crypto';
-import { LoggerService } from '../../../config/logger.service';
+import { LoggerService } from '../../../config/logger';
 import { CachedExtraction } from '../types/pdf-extraction.types';
-import { InvoiceStatus } from '../../invoice/entities/invoice.entity';
+import { InvoiceStatus } from '../../invoice/enums/invoice-status.enum';
 import { ConfigService } from '@nestjs/config';
 import { CacheError } from '@/shared/errors/application.errors';
 

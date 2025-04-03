@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CreateInvoiceDto } from '../invoice/dto/create-invoice.dto';
-import { LoggerService } from '../../config/logger.service';
+import { LoggerService } from '../../config/logger';
 import { PdfCacheService } from './services/pdf-cache.service';
 import { PdfValidationService } from './services/pdf-validation.service';
 import { PdfLayoutService } from './services/pdf-layout.service';
-import { PdfExtractionError } from './types/pdf-extraction.types';
+import { PdfExtractionError } from './types/pdf-types';
 import * as pdf from 'pdf-parse';
 import { CachedExtraction } from './types/pdf-extraction.types';
 
@@ -133,12 +134,10 @@ export class PdfService {
 
       console.log('Texto extraído do PDF:', text.substring(0, 500) + '...');
 
-      // Tentar extrair usando o layout service primeiro
       console.log('Tentando extração via layout');
       const layoutExtraction = await this.layoutService.extract(text);
       console.log('Resultado da extração via layout:', layoutExtraction);
 
-      // Se a extração do layout falhou ou está incompleta, usar o método fallback
       if (!this.isExtractionComplete(layoutExtraction)) {
         console.log('Extração via layout incompleta, usando método fallback');
         this.logger.warn(
@@ -224,7 +223,6 @@ export class PdfService {
   }
 
   private fallbackExtraction(text: string): CachedExtraction {
-    // Extrair número do cliente
     const clientNumberRegex = /N[ºo°]\s*DO\s*CLIENTE\s*(\d{10})/i;
     const installationRegex = /N[ºo°]\s*DA\s*INSTALAÇÃO\s*(\d{10})/i;
 
@@ -249,7 +247,6 @@ export class PdfService {
       clientNumber = (clientNumberMatch || installationMatch)![1];
     }
 
-    // Extrair mês de referência
     const patterns = [
       /Referente\s+a\s+([A-Za-z]{3})\/(\d{4})/i,
       /Referente\s+a\s+FEV\/(\d{4})/i,
@@ -348,7 +345,6 @@ export class PdfService {
     clientNumber: string,
     referenceMonth: Date,
   ): CreateInvoiceDto {
-    // Padrões flexíveis para extração de valores
     const patterns = {
       electricity: [
         /Energia\s+Elétrica\s+kWh\s+(\d+)\s+[\d,]+\s+([\d,]+)/i,
@@ -372,7 +368,6 @@ export class PdfService {
       ],
     };
 
-    // Função auxiliar para extrair valores
     const extractValue = (patterns: RegExp[], text: string) => {
       for (const pattern of patterns) {
         const match = text.match(pattern);
@@ -393,12 +388,10 @@ export class PdfService {
       return null;
     };
 
-    // Extrair valores com tratamento de erro flexível
     const electricityData = extractValue(patterns.electricity, text);
     const sceeData = extractValue(patterns.scee, text);
     const compensatedData = extractValue(patterns.compensated, text);
 
-    // Extrair iluminação pública
     let publicLightingValue = 0;
     for (const pattern of patterns.publicLighting) {
       const match = text.match(pattern);
