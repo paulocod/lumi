@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module';
 import { LoggerModule } from './config/logger.module';
 import { RedisCacheModule } from './config/cache.module';
 import { InvoiceModule } from './domain/invoice/invoice.module';
+import { PdfModule } from './domain/pdf/pdf.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { InvoiceModule } from './domain/invoice/invoice.module';
     PrismaModule,
     HealthModule,
     InvoiceModule,
+    PdfModule,
   ],
 })
 export class AppModule {}
