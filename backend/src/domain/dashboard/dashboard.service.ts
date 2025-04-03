@@ -15,7 +15,7 @@ export class DashboardService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<EnergyDataDto[]> {
-    const invoices = await this.invoiceRepository.findAll({
+    const { invoices } = await this.invoiceRepository.findAll({
       clientNumber,
       startDate,
       endDate,
@@ -34,7 +34,7 @@ export class DashboardService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<FinancialDataDto[]> {
-    const invoices = await this.invoiceRepository.findAll({
+    const { invoices } = await this.invoiceRepository.findAll({
       clientNumber,
       startDate,
       endDate,
