@@ -7,6 +7,7 @@ import { LoggerModule } from './config/logger.module';
 import { RedisCacheModule } from './config/cache.module';
 import { InvoiceModule } from './domain/invoice/invoice.module';
 import { PdfModule } from './domain/pdf/pdf.module';
+import { DashboardModule } from './domain/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PdfModule } from './domain/pdf/pdf.module';
     HealthModule,
     InvoiceModule,
     PdfModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

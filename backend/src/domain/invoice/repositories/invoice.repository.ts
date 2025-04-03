@@ -7,7 +7,11 @@ export interface IInvoiceRepository {
     clientNumber: string,
     month: Date,
   ): Promise<Invoice | null>;
-  findAll(): Promise<Invoice[]>;
+  findAll(filters?: {
+    clientNumber?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<Invoice[]>;
   findByStatus(status: InvoiceStatus): Promise<Invoice[]>;
   updateStatus(id: string, status: InvoiceStatus): Promise<Invoice>;
 }

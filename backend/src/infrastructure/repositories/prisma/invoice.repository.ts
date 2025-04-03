@@ -56,8 +56,26 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     return invoice ? this.mapToInvoice(invoice) : null;
   }
 
-  async findAll(): Promise<Invoice[]> {
+  async findAll(filters?: {
+    clientNumber?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<Invoice[]> {
+    const where: Prisma.InvoiceWhereInput = {};
+
+    if (filters?.clientNumber) {
+      where.clientNumber = filters.clientNumber;
+    }
+
+    if (filters?.startDate || filters?.endDate) {
+      where.referenceMonth = {
+        ...(filters.startDate && { gte: filters.startDate }),
+        ...(filters.endDate && { lte: filters.endDate }),
+      };
+    }
+
     const invoices = await this.prisma.invoice.findMany({
+      where,
       orderBy: { referenceMonth: 'desc' },
     });
 
