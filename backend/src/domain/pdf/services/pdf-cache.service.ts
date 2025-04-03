@@ -1,11 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { createHash } from 'crypto';
 import { LoggerService } from '../../../config/logger.service';
 import { CachedExtraction } from '../types/pdf-extraction.types';
-import { CreateInvoiceDto } from '../../invoice/dto/create-invoice.dto';
 import { InvoiceStatus } from '../../invoice/entities/invoice.entity';
+import { ConfigService } from '@nestjs/config';
+import { CacheError } from '@/shared/errors/application.errors';
 
 interface SerializedCachedExtraction {
   hash: string;
@@ -33,74 +35,119 @@ interface SerializedCachedExtraction {
 
 @Injectable()
 export class PdfCacheService {
+  private readonly memoryCache: Map<string, CachedExtraction> = new Map();
+  private readonly ttl: number;
+
   constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly logger: LoggerService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.ttl = this.configService.get<number>('pdf.cache.ttl') || 3600;
+  }
 
-  async getCachedResult(buffer: Buffer): Promise<CachedExtraction | null> {
+  async getCachedExtraction(buffer: Buffer): Promise<CachedExtraction | null> {
+    const hash = this.generateHash(buffer);
+
     try {
-      const hash = this.generateHash(buffer);
-      const key = `pdf:${hash}`;
-      const cachedJson = await this.cacheManager.get<string>(key);
-
-      if (cachedJson) {
-        this.logger.debug(
-          `Cache hit para extração de PDF com chave ${key}`,
-          'PdfCacheService',
-        );
-        const cached = JSON.parse(cachedJson) as SerializedCachedExtraction;
-        return {
-          hash: cached.hash,
-          result: {
-            ...cached.result,
-            referenceMonth: new Date(cached.result.referenceMonth),
-            status: cached.result.status as InvoiceStatus,
-          },
-          confidence: cached.confidence,
-          timestamp: new Date(cached.timestamp),
-        };
+      const memoryResult = this.memoryCache.get(hash);
+      if (memoryResult) {
+        this.logger.debug(`Cache hit em memória - hash: ${hash}`);
+        return memoryResult;
       }
 
+      const redisResult =
+        await this.cacheManager.get<SerializedCachedExtraction>(`pdf:${hash}`);
+
+      if (redisResult) {
+        this.logger.debug(`Cache hit no Redis - hash: ${hash}`);
+        const cachedExtraction = this.deserialize(redisResult);
+        this.memoryCache.set(hash, cachedExtraction);
+        return cachedExtraction;
+      }
+
+      this.logger.debug(`Cache miss - hash: ${hash}`);
       return null;
     } catch (error) {
-      this.logger.error(
-        `Erro ao buscar resultado em cache: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
-        'PdfCacheService',
-      );
-      return null;
+      this.logger.error(`Erro ao obter cache - hash: ${hash}`, error);
+      throw new CacheError('Erro ao obter cache');
     }
   }
 
-  async setCachedResult(
+  async setCachedExtraction(
     buffer: Buffer,
-    result: CreateInvoiceDto,
-    confidence: CachedExtraction['confidence'],
+    extraction: CachedExtraction,
   ): Promise<void> {
-    try {
-      const hash = this.generateHash(buffer);
-      const key = `pdf:${hash}`;
-      const serialized: SerializedCachedExtraction = {
-        hash,
-        result: {
-          ...result,
-          referenceMonth: result.referenceMonth.toISOString(),
-        },
-        confidence,
-        timestamp: new Date().toISOString(),
-      };
+    const hash = this.generateHash(buffer);
 
-      const serializedJson = JSON.stringify(serialized);
-      await this.cacheManager.set(key, serializedJson, 60 * 60 * 24); // 24 horas
-    } catch (error) {
-      this.logger.error(
-        `Erro ao salvar resultado em cache: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
-        'PdfCacheService',
+    try {
+      await this.cacheManager.set(
+        `pdf:${hash}`,
+        this.serialize(extraction),
+        this.ttl * 1000,
       );
+
+      this.memoryCache.set(hash, extraction);
+
+      this.logger.debug(`Cache atualizado - hash: ${hash}`);
+    } catch (error) {
+      this.logger.error(`Erro ao salvar cache - hash: ${hash}`, error);
+      throw new CacheError('Erro ao salvar cache');
+    }
+  }
+
+  async invalidateCache(buffer: Buffer): Promise<void> {
+    const hash = this.generateHash(buffer);
+
+    try {
+      await this.cacheManager.del(`pdf:${hash}`);
+      this.memoryCache.delete(hash);
+
+      this.logger.debug(`Cache invalidado - hash: ${hash}`);
+    } catch (error) {
+      this.logger.error(`Erro ao invalidar cache - hash: ${hash}`, error);
+      throw new CacheError('Erro ao invalidar cache');
     }
   }
 
   private generateHash(buffer: Buffer): string {
     return createHash('sha256').update(buffer).digest('hex');
+  }
+
+  generatePdfHash(buffer: Buffer): string {
+    return createHash('sha256').update(buffer).digest('hex');
+  }
+
+  private serialize(extraction: CachedExtraction): SerializedCachedExtraction {
+    return {
+      hash: extraction.hash,
+      result: {
+        clientNumber: extraction.result.clientNumber,
+        referenceMonth: extraction.result.referenceMonth.toISOString(),
+        electricityQuantity: extraction.result.electricityQuantity,
+        electricityValue: extraction.result.electricityValue,
+        sceeQuantity: extraction.result.sceeQuantity,
+        sceeValue: extraction.result.sceeValue,
+        compensatedEnergyQuantity: extraction.result.compensatedEnergyQuantity,
+        compensatedEnergyValue: extraction.result.compensatedEnergyValue,
+        publicLightingValue: extraction.result.publicLightingValue,
+        pdfUrl: extraction.result.pdfUrl,
+        status: extraction.result.status,
+      },
+      confidence: extraction.confidence,
+      timestamp: extraction.timestamp.toISOString(),
+    };
+  }
+
+  private deserialize(data: SerializedCachedExtraction): CachedExtraction {
+    return {
+      hash: data.hash,
+      result: {
+        ...data.result,
+        referenceMonth: new Date(data.result.referenceMonth),
+      },
+      confidence: data.confidence,
+      timestamp: new Date(data.timestamp),
+    };
   }
 }

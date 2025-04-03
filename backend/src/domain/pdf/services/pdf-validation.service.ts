@@ -1,14 +1,92 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '../../../config/logger.service';
+import { PdfValidationError } from '@/shared/errors/application.errors';
 import { CreateInvoiceDto } from '../../invoice/dto/create-invoice.dto';
 import {
   InvoiceValidation,
   ExtractionError,
 } from '../types/pdf-extraction.types';
+import * as pdf from 'pdf-parse';
 
 @Injectable()
 export class PdfValidationService {
-  constructor(private readonly logger: LoggerService) {}
+  constructor(
+    private readonly logger: LoggerService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async validatePdf(buffer: Buffer): Promise<void> {
+    try {
+      const maxSize =
+        this.configService.get<number>('pdf.maxSize') ?? 5 * 1024 * 1024; // 5MB padrão
+      if (buffer.length > maxSize) {
+        throw new PdfValidationError(
+          `PDF excede o tamanho máximo permitido de ${maxSize / 1024 / 1024}MB`,
+        );
+      }
+
+      const fileType = this.getFileType(buffer);
+      const allowedTypes = this.configService.get<string[]>(
+        'pdf.allowedTypes',
+      ) ?? ['application/pdf'];
+      if (!allowedTypes.includes(fileType)) {
+        throw new PdfValidationError(
+          `Tipo de arquivo não permitido: ${fileType}`,
+        );
+      }
+
+      await this.validatePdfStructure(buffer);
+    } catch (error) {
+      this.logger.error('Erro na validação do PDF', error);
+      throw error;
+    }
+  }
+
+  private getFileType(buffer: Buffer): string {
+    if (buffer.length >= 5 && buffer.toString('ascii', 0, 5) === '%PDF-') {
+      return 'application/pdf';
+    }
+    throw new PdfValidationError('Arquivo não é um PDF válido');
+  }
+
+  private async validatePdfStructure(buffer: Buffer): Promise<void> {
+    try {
+      await pdf(buffer, {
+        max: 1,
+        pagerender: () => null,
+      });
+    } catch (error) {
+      this.logger.error('Erro ao validar estrutura do PDF', error);
+      throw new PdfValidationError('PDF inválido ou corrompido');
+    }
+  }
+
+  validateInvoiceData(data: CreateInvoiceDto): void {
+    const errors: string[] = [];
+
+    if (!data.clientNumber) {
+      errors.push('Número do cliente é obrigatório');
+    }
+
+    if (!data.referenceMonth) {
+      errors.push('Mês de referência é obrigatório');
+    }
+
+    if (data.electricityQuantity < 0) {
+      errors.push('Quantidade de energia não pode ser negativa');
+    }
+
+    if (data.electricityValue < 0) {
+      errors.push('Valor de energia não pode ser negativo');
+    }
+
+    if (errors.length > 0) {
+      throw new PdfValidationError(errors.join(', '));
+    }
+  }
 
   validateExtractedData(data: Partial<CreateInvoiceDto>): InvoiceValidation {
     const errors: ExtractionError[] = [];

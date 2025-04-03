@@ -227,6 +227,50 @@ export class PdfLayoutService {
     return this.layouts;
   }
 
+  async extract(text: string): Promise<Partial<CreateInvoiceDto>> {
+    console.log('=== Início da Extração por Layout ===');
+    const layout = this.layouts[0];
+    console.log('Layout selecionado:', layout.name);
+
+    const result = await layout.extract(text);
+    console.log('Resultado da extração:', {
+      clientNumber: result.clientNumber,
+      referenceMonth: result.referenceMonth,
+      electricityQuantity: result.electricityQuantity,
+      electricityValue: result.electricityValue,
+      sceeQuantity: result.sceeQuantity,
+      sceeValue: result.sceeValue,
+      compensatedEnergyQuantity: result.compensatedEnergyQuantity,
+      compensatedEnergyValue: result.compensatedEnergyValue,
+      publicLightingValue: result.publicLightingValue,
+    });
+
+    if (!result.clientNumber || !result.referenceMonth) {
+      console.log('Erro: Dados essenciais não encontrados');
+      return {};
+    }
+
+    const numericFields = [
+      'electricityQuantity',
+      'electricityValue',
+      'sceeQuantity',
+      'sceeValue',
+      'compensatedEnergyQuantity',
+      'compensatedEnergyValue',
+      'publicLightingValue',
+    ];
+
+    for (const field of numericFields) {
+      const value = result[field as keyof typeof result];
+      if (typeof value !== 'number' || isNaN(value)) {
+        console.log(`Erro: Campo ${field} inválido:`, value);
+        return {};
+      }
+    }
+
+    return result;
+  }
+
   private findFirstMatch(
     text: string,
     patterns: RegExp[],
