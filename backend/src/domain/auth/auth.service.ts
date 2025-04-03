@@ -8,12 +8,29 @@ import { User } from '@prisma/client';
 
 type UserWithoutPassword = Omit<User, 'password'>;
 
+interface JwtPayload {
+  sub: string;
+  email: string;
+  role: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  private generateTokens(user: User) {
+    const payload = { sub: user.id, email: user.email, role: user.role };
+
+    const [accessToken, refreshToken] = [
+      this.jwtService.sign(payload, { expiresIn: '15m' }),
+      this.jwtService.sign(payload, { expiresIn: '7d' }),
+    ];
+
+    return { accessToken, refreshToken };
+  }
 
   async register(registerDto: RegisterDto): Promise<UserWithoutPassword> {
     const dto = registerDto as {
@@ -46,9 +63,11 @@ export class AuthService {
     return result;
   }
 
-  async login(
-    loginDto: LoginDto,
-  ): Promise<{ access_token: string; user: UserWithoutPassword }> {
+  async login(loginDto: LoginDto): Promise<{
+    access_token: string;
+    refresh_token: string;
+    user: UserWithoutPassword;
+  }> {
     const dto = loginDto as { email: string; password: string };
     const { email, password } = dto;
 
@@ -66,9 +85,11 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const { accessToken, refreshToken } = this.generateTokens(user);
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: accessToken,
+      refresh_token: refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -78,5 +99,23 @@ export class AuthService {
         updatedAt: user.updatedAt,
       },
     };
+  }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify<JwtPayload>(refreshToken);
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('Token inválido');
+      }
+
+      const { accessToken } = this.generateTokens(user);
+      return { access_token: accessToken };
+    } catch {
+      throw new UnauthorizedException('Token inválido ou expirado');
+    }
   }
 }
