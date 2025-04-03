@@ -1,13 +1,14 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Controller,
   Post,
-  UploadedFile,
   UseInterceptors,
+  UploadedFile,
   BadRequestException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PdfService } from '../../domain/pdf/pdf.service';
-import { CreateInvoiceDto } from '../../domain/invoice/dto/create-invoice.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -15,24 +16,20 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
-
-interface MulterFile {
-  fieldname: string;
-  originalname: string;
-  encoding: string;
-  mimetype: string;
-  buffer: Buffer;
-  size: number;
-}
+import { Auth } from '../../domain/auth/decorators/auth.decorator';
+import { Role } from '@prisma/client';
+import { PdfService } from '@/domain/pdf/pdf.service';
+import { CreateInvoiceDto } from '@/domain/invoice/dto/create-invoice.dto';
 
 @ApiTags('pdf')
 @Controller('pdf')
+@Auth()
 export class PdfController {
   constructor(private readonly pdfService: PdfService) {}
 
   @Post('extract')
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Extrair dados de fatura de um arquivo PDF' })
+  @Auth(Role.ADMIN)
+  @ApiOperation({ summary: 'Extrair dados de um arquivo PDF' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -41,23 +38,26 @@ export class PdfController {
         file: {
           type: 'string',
           format: 'binary',
+          description: 'Arquivo PDF para extração',
+          example: 'documento.pdf',
         },
       },
     },
   })
   @ApiResponse({
-    status: 201,
+    status: HttpStatus.OK,
     description: 'Dados extraídos com sucesso',
-    type: CreateInvoiceDto,
   })
   @ApiResponse({
-    status: 400,
-    description: 'Arquivo inválido ou erro na extração',
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Arquivo inválido ou não é um PDF',
   })
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
   async extractInvoice(
-    @UploadedFile() file: MulterFile,
+    @UploadedFile() file: Express.Multer.File,
   ): Promise<CreateInvoiceDto> {
-    if (!file) {
+    if (!file || !file.buffer) {
       throw new BadRequestException('Nenhum arquivo enviado');
     }
 
@@ -65,10 +65,10 @@ export class PdfController {
       throw new BadRequestException('O arquivo deve ser um PDF');
     }
 
-    if (!Buffer.isBuffer(file.buffer)) {
-      throw new BadRequestException('O buffer do arquivo não é válido');
+    try {
+      return await this.pdfService.extractInvoiceFromPdf(file.buffer);
+    } catch (error) {
+      throw new BadRequestException('Erro ao processar o arquivo PDF', error);
     }
-
-    return this.pdfService.extractInvoiceFromPdf(file.buffer);
   }
 }

@@ -27,13 +27,17 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadInvoiceUrlDto } from '@/domain/invoice/dto/upload-invoice.dto';
 import { PdfSource } from '@/domain/pdf/types/pdf-types';
+import { Auth } from '../../domain/auth/decorators/auth.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('invoices')
 @Controller('invoices')
+@Auth()
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
   @Post('upload')
+  @Auth(Role.ADMIN)
   @ApiOperation({ summary: 'Upload de fatura via URL' })
   @ApiBody({ type: UploadInvoiceUrlDto })
   @ApiResponse({
@@ -55,6 +59,7 @@ export class InvoiceController {
   }
 
   @Post('upload/buffer')
+  @Auth(Role.ADMIN)
   @ApiOperation({ summary: 'Upload de fatura via arquivo PDF' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -121,6 +126,7 @@ export class InvoiceController {
   }
 
   @Get('status/:invoiceId')
+  @Auth(Role.USER)
   @ApiOperation({ summary: 'Buscar status de processamento da fatura' })
   @ApiParam({
     name: 'invoiceId',
@@ -151,6 +157,7 @@ export class InvoiceController {
   }
 
   @Get()
+  @Auth(Role.USER)
   @ApiOperation({ summary: 'Listar faturas com filtros' })
   @ApiQuery({
     name: 'clientNumber',
