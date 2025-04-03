@@ -15,7 +15,7 @@ async function bootstrap() {
     .setTitle('Lumi API')
     .setDescription('API para gerenciamento de faturas de energia')
     .setVersion('1.0')
-    .addTag('health')
+    .addTag('Lumi')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);

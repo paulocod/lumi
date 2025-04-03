@@ -30,8 +30,8 @@ export class HealthController {
 
     const result = await this.health.check([
       () => this.prismaHealth.pingCheck('database', this.prisma),
-      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-      () => this.memory.checkRSS('memory_rss', 150 * 1024 * 1024),
+      () => this.memory.checkHeap('memory_heap', 500 * 1024 * 1024),
+      () => this.memory.checkRSS('memory_rss', 1000 * 1024 * 1024),
       () =>
         this.disk.checkStorage('storage', {
           thresholdPercent: 0.9,
