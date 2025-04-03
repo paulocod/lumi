@@ -1,13 +1,14 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import * as winston from 'winston';
+
+const logger = winston.createLogger({
+  transports: [new winston.transports.Console()],
+});
 
 export const otelSDK = new NodeSDK({
-  traceExporter: new OTLPTraceExporter({
-    url:
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
-      'http://localhost:4318/v1/traces',
-  }),
+  traceExporter: new OTLPTraceExporter(),
   instrumentations: [getNodeAutoInstrumentations()],
 });
 
@@ -15,8 +16,8 @@ process.on('SIGTERM', () => {
   otelSDK
     .shutdown()
     .then(
-      () => console.log('SDK shut down successfully'),
-      (err) => console.log('Error shutting down SDK', err),
+      () => logger.info('SDK desligado com sucesso'),
+      (err) => logger.error('Erro ao desligar SDK:', err),
     )
     .finally(() => process.exit(0));
 });
