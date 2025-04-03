@@ -1,10 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { otelSDK } from './config/tracing.config';
+import { setupSwagger } from './config/swagger.config';
 
 async function bootstrap() {
   otelSDK.start();
@@ -13,15 +13,7 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
-  const config = new DocumentBuilder()
-    .setTitle('Lumi API')
-    .setDescription('API para gerenciamento de faturas de energia')
-    .setVersion('1.0')
-    .addTag('Lumi')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  setupSwagger(app);
 
   app.use(helmet());
   app.enableCors();
