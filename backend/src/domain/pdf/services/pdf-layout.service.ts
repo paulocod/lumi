@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LoggerService } from '../../../config/logger.service';
+import { LoggerService } from '../../../config/logger';
 import { CreateInvoiceDto } from '../../invoice/dto/create-invoice.dto';
 import { PdfLayout } from '../types/pdf-extraction.types';
 
