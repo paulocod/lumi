@@ -15,6 +15,21 @@ import { redisStore } from 'cache-manager-redis-store';
       prefix: 'pdf:',
       database: 0,
       password: process.env.REDIS_PASSWORD,
+      serializer: {
+        serialize: (value: unknown): string => {
+          if (typeof value === 'string') {
+            return value;
+          }
+          return JSON.stringify(value);
+        },
+        deserialize: (value: string): unknown => {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return value;
+          }
+        },
+      },
     }),
   ],
   exports: [CacheModule],

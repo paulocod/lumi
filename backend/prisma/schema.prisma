@@ -34,7 +34,8 @@ model Invoice {
   compensatedEnergyValue    Float
   publicLightingValue       Float
   pdfUrl                    String?
-  status                    String   @default("PROCESSED")
+  status                    String   @default("PENDING")
+  error                     String?
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 
