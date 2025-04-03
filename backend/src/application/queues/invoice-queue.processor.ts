@@ -14,7 +14,6 @@ import { Logger, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Job, Queue } from 'bull';
-import { PrismaService } from '@/prisma/prisma.service';
 import {
   InvoiceCreatedEvent,
   InvoiceProcessedEvent,
@@ -27,6 +26,7 @@ import {
 } from '@/shared/errors/application.errors';
 import { PdfSource } from '@/domain/pdf/types/pdf-types';
 import { InvoiceStatus } from '@/domain/invoice/enums/invoice-status.enum';
+import { PrismaService } from 'prisma/prisma.service';
 
 interface InvoiceJobData {
   pdf: PdfSource;

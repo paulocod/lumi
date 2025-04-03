@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { InvoiceQueueProcessor } from './invoice-queue.processor';
 import { InvoiceQueueController } from './invoice-queue.controller';
-import { PrismaModule } from '@/prisma/prisma.module';
 import { PdfModule } from '@/domain/pdf/pdf.module';
+import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
   imports: [

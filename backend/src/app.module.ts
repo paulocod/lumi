@@ -2,19 +2,19 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { LoggerModule } from './config/logger';
 import { RedisCacheModule } from './config/cache.module';
 import { InvoiceModule } from './domain/invoice/invoice.module';
 import { PdfModule } from './domain/pdf/pdf.module';
-import { DashboardModule } from './domain/dashboard/dashboard.module';
 import { InvoiceQueueModule } from './application/queues/invoice-queue.module';
 import { BullConfigModule } from './config/bull.module';
 import { InvoiceSharedModule } from './shared/invoice-shared.module';
 import { AuthModule } from './domain/auth/auth.module';
 import { RolesGuard } from './domain/auth/guards/roles.guard';
 import { appConfig, pdfConfig, queueConfig } from './config/app.config';
+import { PrismaModule } from 'prisma/prisma.module';
+import { DashboardModule } from './presentation/dashboard/dashboard.module';
 
 @Module({
   imports: [
