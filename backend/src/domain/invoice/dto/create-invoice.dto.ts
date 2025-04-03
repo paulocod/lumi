@@ -1,6 +1,14 @@
-import { IsString, IsDate, IsNumber, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsDate,
+  IsNumber,
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { InvoiceStatus } from '../entities/invoice.entity';
 
 export class CreateInvoiceDto {
   @ApiProperty({
@@ -74,5 +82,24 @@ export class CreateInvoiceDto {
   })
   @IsNumber()
   @IsNotEmpty()
-  publicLightingContribution: number;
+  publicLightingValue: number;
+
+  @ApiProperty({
+    description: 'URL do PDF da fatura',
+    example: 'https://example.com/invoice.pdf',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  pdfUrl?: string;
+
+  @ApiProperty({
+    description: 'Status do processamento da fatura',
+    example: InvoiceStatus.PROCESSED,
+    enum: InvoiceStatus,
+    default: InvoiceStatus.PROCESSED,
+  })
+  @IsEnum(InvoiceStatus)
+  @IsOptional()
+  status?: InvoiceStatus;
 }

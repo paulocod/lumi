@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export enum InvoiceStatus {
+  PROCESSING = 'PROCESSING',
+  PROCESSED = 'PROCESSED',
+  ERROR = 'ERROR',
+}
+
 export class Invoice {
   @ApiProperty({
     description: 'ID da fatura',
@@ -59,7 +65,21 @@ export class Invoice {
     description: 'Contribuição de iluminação pública (R$)',
     example: 49.43,
   })
-  publicLightingContribution: number;
+  publicLightingValue: number;
+
+  @ApiProperty({
+    description: 'URL do PDF da fatura',
+    example: 'https://example.com/invoice.pdf',
+    required: false,
+  })
+  pdfUrl?: string;
+
+  @ApiProperty({
+    description: 'Status do processamento da fatura',
+    example: InvoiceStatus.PROCESSED,
+    enum: InvoiceStatus,
+  })
+  status: InvoiceStatus;
 
   @ApiProperty({
     description: 'Data de criação da fatura',
@@ -82,9 +102,7 @@ export class Invoice {
   }
 
   get totalValueWithoutGD(): number {
-    return (
-      this.electricityValue + this.sceeValue + this.publicLightingContribution
-    );
+    return this.electricityValue + this.sceeValue + this.publicLightingValue;
   }
 
   get economyGD(): number {
