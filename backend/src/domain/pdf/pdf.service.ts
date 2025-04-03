@@ -199,7 +199,7 @@ export class PdfService {
     if (!publicLightingMatch) {
       throw new Error('Public lighting contribution not found in PDF');
     }
-    const publicLightingContribution = parseFloat(
+    const publicLightingValue = parseFloat(
       publicLightingMatch[1].replace('.', '').replace(',', '.'),
     );
 
@@ -217,7 +217,7 @@ export class PdfService {
       sceeValue,
       compensatedEnergyQuantity,
       compensatedEnergyValue,
-      publicLightingContribution,
+      publicLightingValue,
     };
   }
 }

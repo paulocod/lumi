@@ -39,7 +39,7 @@ describe('PdfValidationService', () => {
         sceeValue: 235.42,
         compensatedEnergyQuantity: 456,
         compensatedEnergyValue: -225.42,
-        publicLightingContribution: 49.43,
+        publicLightingValue: 49.43,
       };
 
       const result = service.validateExtractedData(validData);

@@ -47,7 +47,7 @@ export class PdfLayoutService {
           /Energia\s+compensada\s+GD\s+I\s*kWh\s*\d+\s*[\d,.]+\s*-([\d,.]+)/i,
           /Energia\s+compensada\s*(?:GD\s+I)?\s*kWh\s*\d+(?:\.\d+)?\s*[\d,.]+\s*-([\d,.]+)/i,
         ],
-        publicLightingContribution: [
+        publicLightingValue: [
           /Contrib\s*Ilum\s*Publica\s*Municipal\s*([\d,.]+)/i,
           /Contribuição\s*Iluminação\s*Pública\s*Municipal\s*([\d,.]+)/i,
         ],
@@ -201,13 +201,13 @@ export class PdfLayoutService {
           );
         }
 
-        const publicLightingContributionMatch = this.findFirstMatch(
+        const publicLightingValueMatch = this.findFirstMatch(
           text,
-          layout.patterns.publicLightingContribution,
+          layout.patterns.publicLightingValue,
         );
-        if (publicLightingContributionMatch) {
-          result.publicLightingContribution = this.parseValue(
-            publicLightingContributionMatch[1],
+        if (publicLightingValueMatch) {
+          result.publicLightingValue = this.parseValue(
+            publicLightingValueMatch[1],
           );
         } else {
           this.logger.warn(

@@ -74,7 +74,7 @@ describe('PdfLayoutService', () => {
     it('should extract public lighting contribution', async () => {
       const text = 'Contrib Ilum Publica Municipal 49,43';
       const result = await layout.extract(text);
-      expect(result.publicLightingContribution).toBe(49.43);
+      expect(result.publicLightingValue).toBe(49.43);
     });
 
     it('should handle alternative formats', async () => {
@@ -96,7 +96,7 @@ describe('PdfLayoutService', () => {
       expect(result.sceeValue).toBe(235.42);
       expect(result.compensatedEnergyQuantity).toBe(456);
       expect(result.compensatedEnergyValue).toBe(-225.42);
-      expect(result.publicLightingContribution).toBe(49.43);
+      expect(result.publicLightingValue).toBe(49.43);
     });
   });
 });

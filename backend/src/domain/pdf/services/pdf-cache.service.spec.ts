@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -57,7 +59,7 @@ describe('PdfCacheService', () => {
           sceeValue: 235.42,
           compensatedEnergyQuantity: 456,
           compensatedEnergyValue: -225.42,
-          publicLightingContribution: 49.43,
+          publicLightingValue: 49.43,
         },
         confidence: [
           {
@@ -110,7 +112,7 @@ describe('PdfCacheService', () => {
         sceeValue: 235.42,
         compensatedEnergyQuantity: 456,
         compensatedEnergyValue: -225.42,
-        publicLightingContribution: 49.43,
+        publicLightingValue: 49.43,
       };
       const confidence = [
         {
@@ -137,7 +139,7 @@ describe('PdfCacheService', () => {
         sceeValue: 235.42,
         compensatedEnergyQuantity: 456,
         compensatedEnergyValue: -225.42,
-        publicLightingContribution: 49.43,
+        publicLightingValue: 49.43,
       };
       const confidence = [
         {

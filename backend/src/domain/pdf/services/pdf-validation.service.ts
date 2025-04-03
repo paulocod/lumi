@@ -120,17 +120,17 @@ export class PdfValidationService {
       }
 
       if (
-        typeof data.publicLightingContribution !== 'number' ||
-        data.publicLightingContribution < 0
+        typeof data.publicLightingValue !== 'number' ||
+        data.publicLightingValue < 0
       ) {
         this.logger.warn(
-          `Contribuição de iluminação pública inválida: ${data.publicLightingContribution}`,
+          `Contribuição de iluminação pública inválida: ${data.publicLightingValue}`,
           'PdfValidationService',
         );
         errors.push({
           code: 'INVALID_PUBLIC_LIGHTING_CONTRIBUTION',
           message: 'Contribuição de iluminação pública inválida',
-          field: 'publicLightingContribution',
+          field: 'publicLightingValue',
         });
       }
 
