@@ -9,6 +9,17 @@ export function setupSwagger(app: INestApplication) {
     .setDescription('API para processamento de faturas de energia')
     .setVersion('1.0')
     .addTag('invoices')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'access-token',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config, {
@@ -19,6 +30,7 @@ export function setupSwagger(app: INestApplication) {
     swaggerOptions: {
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',
+      persistAuthorization: true,
     },
   });
 }
