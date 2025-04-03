@@ -1,7 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable } from '@nestjs/common';
 import { CreateInvoiceDto } from '../invoice/dto/create-invoice.dto';
-import * as pdf from 'pdf-parse';
 import { LoggerService } from '../../config/logger.service';
+import { PdfCacheService } from './services/pdf-cache.service';
+import { PdfValidationService } from './services/pdf-validation.service';
+import { PdfLayoutService } from './services/pdf-layout.service';
+import { PdfExtractionError } from './types/pdf-extraction.types';
+import * as pdf from 'pdf-parse';
 
 interface PdfData {
   text: string;
@@ -38,67 +43,95 @@ export class PdfService {
     DEZEMBRO: 11,
   };
 
-  constructor(private readonly logger: LoggerService) {}
+  constructor(
+    private readonly logger: LoggerService,
+    private readonly cacheService: PdfCacheService,
+    private readonly validationService: PdfValidationService,
+    private readonly layoutService: PdfLayoutService,
+  ) {}
 
   async extractInvoiceFromPdf(buffer: Buffer): Promise<CreateInvoiceDto> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      const cached = await this.cacheService.getCachedResult(buffer);
+      if (cached) {
+        return cached.result;
+      }
+
       const data = (await pdf(buffer)) as PdfData;
       const text = data.text;
 
-      let clientNumberMatch: RegExpMatchArray | null = text.match(
-        /Nº DA INSTALAÇÃO\s*(\d+)/i,
-      );
-      if (!clientNumberMatch) {
-        clientNumberMatch = text.match(
-          /(?:Instalação|Unidade Consumidora):\s*(\d+)/i,
-        );
-      }
-      if (!clientNumberMatch) {
-        throw new Error('Client number not found in PDF');
-      }
-      const clientNumber = clientNumberMatch[1];
+      // Tentar extrair dados usando os layouts disponíveis
+      const layouts = this.layoutService.getLayouts();
+      let extractedData: Partial<CreateInvoiceDto> | null = null;
+      let errors: string[] = [];
 
-      let referenceMonthMatch: RegExpMatchArray | null = text.match(
-        /(?:Referente a|Fatura de):?\s*([A-Za-zç]+)\s*(?:de)?\s*(\d{4})/i,
-      );
-      if (!referenceMonthMatch) {
-        referenceMonthMatch = text.match(/([A-Z]{3,})\/(\d{4})/i);
-      }
-      if (!referenceMonthMatch) {
-        referenceMonthMatch = text.match(/(\d{2})\/(\d{4})/);
-        if (referenceMonthMatch) {
-          const month = parseInt(referenceMonthMatch[1]) - 1;
-          const year = parseInt(referenceMonthMatch[2]);
-          return this.processExtractedData(
-            text,
-            clientNumber,
-            new Date(year, month, 1),
+      for (const layout of layouts) {
+        try {
+          extractedData = await layout.extract(text);
+          const validation =
+            this.validationService.validateExtractedData(extractedData);
+
+          if (validation.isValid && validation.data) {
+            const confidence = [
+              {
+                field: 'clientNumber',
+                value: validation.data.clientNumber,
+                confidence: 1,
+                method: 'regex',
+              },
+              {
+                field: 'referenceMonth',
+                value: validation.data.referenceMonth.toISOString(),
+                confidence: 1,
+                method: 'regex',
+              },
+            ];
+
+            await this.cacheService.setCachedResult(
+              buffer,
+              validation.data,
+              confidence,
+            );
+
+            return validation.data;
+          }
+
+          errors = errors.concat(validation.errors);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          this.logger.warn(
+            `Falha ao extrair dados usando layout ${layout.name}: ${errorMessage}`,
+            'PdfService',
           );
+          errors.push(errorMessage);
         }
       }
 
-      if (!referenceMonthMatch) {
-        throw new Error('Reference month not found in PDF');
-      }
-
-      const monthStr = referenceMonthMatch[1].toUpperCase();
-      const month = this.monthMap[monthStr as keyof typeof this.monthMap];
-      if (month === undefined) {
-        throw new Error(`Invalid month format: ${monthStr}`);
-      }
-      const year = parseInt(referenceMonthMatch[2]);
-      const referenceMonth = new Date(year, month, 1);
-
-      return this.processExtractedData(text, clientNumber, referenceMonth);
+      throw new PdfExtractionError(
+        errors.map((message) => ({
+          code: 'EXTRACTION_FAILED',
+          message,
+        })),
+        extractedData || undefined,
+      );
     } catch (error) {
+      if (error instanceof PdfExtractionError) {
+        throw error;
+      }
+
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `Error extracting data from PDF: ${errorMessage}`,
+        `Erro ao extrair dados do PDF: ${errorMessage}`,
         'PdfService',
       );
-      throw error;
+      throw new PdfExtractionError([
+        {
+          code: 'PDF_PROCESSING_ERROR',
+          message: 'Erro ao processar o arquivo PDF',
+        },
+      ]);
     }
   }
 
