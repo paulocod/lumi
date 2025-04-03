@@ -1,7 +1,4 @@
-export type PdfSource = {
-  type: 'buffer' | 'url';
-  data: string | Buffer | number[];
-};
+import { PdfSource } from '../../domain/pdf/types/pdf-types';
 
 export interface InvoiceCreatedEvent {
   invoiceId: string;
