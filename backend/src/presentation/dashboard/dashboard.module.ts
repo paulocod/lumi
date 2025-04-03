@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
-import { PrismaModule } from '../../prisma/prisma.module';
+import { PrismaModule } from '../../../prisma/prisma.module';
 import { PrismaInvoiceRepository } from '../../infrastructure/repositories/prisma/invoice.repository';
-import { INVOICE_REPOSITORY } from '../invoice/invoice.tokens';
+import { INVOICE_REPOSITORY } from '../../domain/invoice/invoice.tokens';
 
 @Module({
   imports: [PrismaModule],

@@ -1,11 +1,11 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { IInvoiceRepository } from '../invoice/repositories/invoice.repository';
+import { IInvoiceRepository } from '../../domain/invoice/repositories/invoice.repository';
 import {
   EnergyDataDto,
   FinancialDataDto,
   DashboardSummaryDto,
 } from './dto/dashboard.dto';
-import { INVOICE_REPOSITORY } from '../invoice/invoice.tokens';
+import { INVOICE_REPOSITORY } from '../../domain/invoice/invoice.tokens';
 
 @Injectable()
 export class DashboardService {

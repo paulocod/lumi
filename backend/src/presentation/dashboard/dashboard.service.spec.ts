@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DashboardService } from './dashboard.service';
-import { IInvoiceRepository } from '../invoice/repositories/invoice.repository';
-import { Invoice, InvoiceStatus } from '../invoice/entities/invoice.entity';
+import { IInvoiceRepository } from '@/domain/invoice/repositories/invoice.repository';
+import { Invoice } from '@/domain/invoice/entities/invoice.entity';
+import { InvoiceStatus } from '@/domain/invoice/enums/invoice-status.enum';
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -44,13 +45,16 @@ describe('DashboardService', () => {
           sceeValue: 235.42,
           compensatedEnergyValue: -225.42,
           publicLightingValue: 49.43,
-          status: InvoiceStatus.PROCESSED,
+          status: InvoiceStatus.COMPLETED,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       ];
 
-      invoiceRepository.findAll.mockResolvedValue(mockInvoices as Invoice[]);
+      invoiceRepository.findAll.mockResolvedValue({
+        invoices: mockInvoices as Invoice[],
+        total: mockInvoices.length,
+      });
 
       const result = await service.getEnergyData();
 
@@ -78,13 +82,16 @@ describe('DashboardService', () => {
           sceeValue: 235.42,
           compensatedEnergyValue: -225.42,
           publicLightingValue: 49.43,
-          status: InvoiceStatus.PROCESSED,
+          status: InvoiceStatus.COMPLETED,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       ];
 
-      invoiceRepository.findAll.mockResolvedValue(mockInvoices as Invoice[]);
+      invoiceRepository.findAll.mockResolvedValue({
+        invoices: mockInvoices as Invoice[],
+        total: mockInvoices.length,
+      });
 
       const result = await service.getFinancialData();
 
