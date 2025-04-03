@@ -1,6 +1,29 @@
 version: '3.8'
 
 services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lumi-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/lumi
+      - REDIS_URL=redis://redis:6379
+      - JAEGER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+      - PORT=3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    networks:
+      - lumi-network
+
   postgres:
     image: postgres:14-alpine
     container_name: lumi-postgres
