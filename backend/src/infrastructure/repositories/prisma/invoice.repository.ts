@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IInvoiceRepository } from '../../../domain/invoice/repositories/invoice.repository';
-import { Invoice } from '../../../domain/invoice/entities/invoice.entity';
+import {
+  Invoice,
+  InvoiceStatus,
+} from '../../../domain/invoice/entities/invoice.entity';
+import { Prisma } from '@prisma/client';
+
+type InvoiceWithRelations = Prisma.InvoiceGetPayload<Record<string, never>>;
 
 @Injectable()
 export class PrismaInvoiceRepository implements IInvoiceRepository {
@@ -18,11 +24,13 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         sceeValue: invoice.sceeValue,
         compensatedEnergyQuantity: invoice.compensatedEnergyQuantity,
         compensatedEnergyValue: invoice.compensatedEnergyValue,
-        publicLightingContribution: invoice.publicLightingContribution,
+        publicLightingValue: invoice.publicLightingValue,
+        pdfUrl: invoice.pdfUrl || null,
+        status: invoice.status || InvoiceStatus.PROCESSED,
       },
     });
 
-    return new Invoice(createdInvoice);
+    return this.mapToInvoice(createdInvoice);
   }
 
   async findByClientNumber(clientNumber: string): Promise<Invoice[]> {
@@ -31,7 +39,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       orderBy: { referenceMonth: 'desc' },
     });
 
-    return invoices.map((invoice) => new Invoice(invoice));
+    return invoices.map((invoice) => this.mapToInvoice(invoice));
   }
 
   async findByClientNumberAndMonth(
@@ -45,7 +53,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       },
     });
 
-    return invoice ? new Invoice(invoice) : null;
+    return invoice ? this.mapToInvoice(invoice) : null;
   }
 
   async findAll(): Promise<Invoice[]> {
@@ -53,6 +61,32 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       orderBy: { referenceMonth: 'desc' },
     });
 
-    return invoices.map((invoice) => new Invoice(invoice));
+    return invoices.map((invoice) => this.mapToInvoice(invoice));
+  }
+
+  async findByStatus(status: InvoiceStatus): Promise<Invoice[]> {
+    const invoices = await this.prisma.invoice.findMany({
+      where: { status },
+      orderBy: { referenceMonth: 'desc' },
+    });
+
+    return invoices.map((invoice) => this.mapToInvoice(invoice));
+  }
+
+  async updateStatus(id: string, status: InvoiceStatus): Promise<Invoice> {
+    const updatedInvoice = await this.prisma.invoice.update({
+      where: { id },
+      data: { status },
+    });
+
+    return this.mapToInvoice(updatedInvoice);
+  }
+
+  private mapToInvoice(data: InvoiceWithRelations): Invoice {
+    // @ts-expect-error - Ignorando erro de tipo para pdfUrl
+    return new Invoice({
+      ...data,
+      status: data.status as InvoiceStatus,
+    });
   }
 }

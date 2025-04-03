@@ -1,4 +1,4 @@
-import { Invoice } from '../entities/invoice.entity';
+import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 
 export interface IInvoiceRepository {
   create(invoice: Invoice): Promise<Invoice>;
@@ -8,4 +8,6 @@ export interface IInvoiceRepository {
     month: Date,
   ): Promise<Invoice | null>;
   findAll(): Promise<Invoice[]>;
+  findByStatus(status: InvoiceStatus): Promise<Invoice[]>;
+  updateStatus(id: string, status: InvoiceStatus): Promise<Invoice>;
 }
