@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { AppModule } from '@/app.module';
 
 let app: INestApplication;
 let prisma: PrismaService;
@@ -12,18 +12,11 @@ beforeAll(async () => {
   }).compile();
 
   app = moduleRef.createNestApplication();
-  prisma = moduleRef.get(PrismaService);
-
+  prisma = app.get<PrismaService>(PrismaService);
   await app.init();
 });
 
 afterAll(async () => {
-  if (prisma) {
-    await prisma.$disconnect();
-  }
-  if (app) {
-    await app.close();
-  }
+  await prisma.$disconnect();
+  await app.close();
 });
-
-export { app, prisma };
