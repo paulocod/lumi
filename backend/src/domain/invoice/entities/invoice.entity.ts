@@ -1,11 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-
-export enum InvoiceStatus {
-  PENDING = 'PENDING',
-  PROCESSING = 'PROCESSING',
-  PROCESSED = 'PROCESSED',
-  ERROR = 'ERROR',
-}
+import { InvoiceStatus } from '../enums/invoice-status.enum';
 
 export class Invoice {
   @ApiProperty({
