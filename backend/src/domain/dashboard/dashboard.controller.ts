@@ -1,7 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
-import { EnergyDataDto, FinancialDataDto } from './dto/dashboard.dto';
+import {
+  DashboardSummaryDto,
+  EnergyDataDto,
+  FinancialDataDto,
+} from './dto/dashboard.dto';
 
 @ApiTags('Dashboard')
 @Controller('dashboard')
@@ -78,5 +82,32 @@ export class DashboardController {
       startDate,
       endDate,
     );
+  }
+
+  @Get('summary')
+  @ApiOperation({ summary: 'Obter resumo dos dados do dashboard' })
+  @ApiQuery({
+    name: 'clientNumber',
+    required: false,
+    description: 'Número do cliente para filtrar os dados',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Data inicial para filtrar os dados (YYYY-MM-DD)',
+    type: Date,
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'Data final para filtrar os dados (YYYY-MM-DD)',
+    type: Date,
+  })
+  async getSummary(
+    @Query('clientNumber') clientNumber?: string,
+    @Query('startDate') startDate?: Date,
+    @Query('endDate') endDate?: Date,
+  ): Promise<DashboardSummaryDto> {
+    return this.dashboardService.getSummary(clientNumber, startDate, endDate);
   }
 }

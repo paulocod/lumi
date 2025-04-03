@@ -39,3 +39,35 @@ export class FinancialDataDto {
   })
   month: Date;
 }
+
+export class DashboardSummaryDto {
+  @ApiProperty({
+    description: 'Total de consumo de energia elétrica (kWh)',
+    example: 5260,
+  })
+  totalElectricityConsumption: number;
+
+  @ApiProperty({
+    description: 'Total de energia compensada (kWh)',
+    example: 4760,
+  })
+  totalCompensatedEnergy: number;
+
+  @ApiProperty({
+    description: 'Total gasto sem GD (R$)',
+    example: 5023.5,
+  })
+  totalWithoutGD: number;
+
+  @ApiProperty({
+    description: 'Total de economia com GD (R$)',
+    example: 2254.2,
+  })
+  totalGDSavings: number;
+
+  @ApiProperty({
+    description: 'Percentual de economia com GD',
+    example: 44.87,
+  })
+  savingsPercentage: number;
+}
