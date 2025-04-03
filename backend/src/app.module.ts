@@ -12,6 +12,8 @@ import { DashboardModule } from './domain/dashboard/dashboard.module';
 import { InvoiceQueueModule } from './application/queues/invoice-queue.module';
 import { BullConfigModule } from './config/bull.module';
 import { InvoiceSharedModule } from './shared/invoice-shared.module';
+import { AuthModule } from './domain/auth/auth.module';
+import { RolesGuard } from './domain/auth/guards/roles.guard';
 import { appConfig, pdfConfig, queueConfig } from './config/app.config';
 
 @Module({
@@ -51,6 +53,8 @@ import { appConfig, pdfConfig, queueConfig } from './config/app.config';
     InvoiceSharedModule,
     InvoiceModule,
     InvoiceQueueModule,
+    AuthModule,
   ],
+  providers: [RolesGuard],
 })
 export class AppModule {}
