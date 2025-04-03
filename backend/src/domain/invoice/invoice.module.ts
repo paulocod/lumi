@@ -1,20 +1,12 @@
 import { Module } from '@nestjs/common';
-import { InvoiceController } from '../../presentation/invoice/invoice.controller';
-import { InvoiceService } from '../../application/invoice/invoice.service';
-import { PrismaInvoiceRepository } from '../../infrastructure/repositories/prisma/invoice.repository';
-import { PrismaModule } from '../../prisma/prisma.module';
-import { INVOICE_REPOSITORY } from './invoice.tokens';
+import { InvoiceController } from '@/presentation/invoice/invoice.controller';
+import { PdfModule } from '../pdf/pdf.module';
+import { PrismaModule } from '@/prisma/prisma.module';
+import { InvoiceSharedModule } from '@/shared/invoice-shared.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PdfModule, PrismaModule, InvoiceSharedModule],
   controllers: [InvoiceController],
-  providers: [
-    InvoiceService,
-    {
-      provide: INVOICE_REPOSITORY,
-      useClass: PrismaInvoiceRepository,
-    },
-  ],
-  exports: [InvoiceService],
+  exports: [],
 })
 export class InvoiceModule {}

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IInvoiceRepository } from '../../../domain/invoice/repositories/invoice.repository';
@@ -60,26 +61,41 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     clientNumber?: string;
     startDate?: Date;
     endDate?: Date;
-  }): Promise<Invoice[]> {
+    month?: Date;
+    page?: number;
+    limit?: number;
+  }): Promise<{ invoices: Invoice[]; total: number }> {
     const where: Prisma.InvoiceWhereInput = {};
 
     if (filters?.clientNumber) {
       where.clientNumber = filters.clientNumber;
     }
 
-    if (filters?.startDate || filters?.endDate) {
+    if (filters?.month) {
+      where.referenceMonth = filters.month;
+    } else if (filters?.startDate || filters?.endDate) {
       where.referenceMonth = {
         ...(filters.startDate && { gte: filters.startDate }),
         ...(filters.endDate && { lte: filters.endDate }),
       };
     }
 
-    const invoices = await this.prisma.invoice.findMany({
-      where,
-      orderBy: { referenceMonth: 'desc' },
-    });
+    const [invoices, total] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where,
+        orderBy: { referenceMonth: 'desc' },
+        skip: filters?.page
+          ? (filters.page - 1) * (filters.limit || 10)
+          : undefined,
+        take: filters?.limit || 10,
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
 
-    return invoices.map((invoice) => this.mapToInvoice(invoice));
+    return {
+      invoices: invoices.map((invoice) => this.mapToInvoice(invoice)),
+      total,
+    };
   }
 
   async findByStatus(status: InvoiceStatus): Promise<Invoice[]> {
@@ -100,11 +116,31 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     return this.mapToInvoice(updatedInvoice);
   }
 
+  async findById(id: string): Promise<Invoice | null> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+    });
+
+    return invoice ? this.mapToInvoice(invoice) : null;
+  }
+
   private mapToInvoice(data: InvoiceWithRelations): Invoice {
-    // @ts-expect-error - Ignorando erro de tipo para pdfUrl
     return new Invoice({
-      ...data,
+      id: data.id,
+      clientNumber: data.clientNumber,
+      referenceMonth: data.referenceMonth,
+      electricityQuantity: data.electricityQuantity,
+      electricityValue: data.electricityValue,
+      sceeQuantity: data.sceeQuantity,
+      sceeValue: data.sceeValue,
+      compensatedEnergyQuantity: data.compensatedEnergyQuantity,
+      compensatedEnergyValue: data.compensatedEnergyValue,
+      publicLightingValue: data.publicLightingValue,
+      pdfUrl: data.pdfUrl || undefined,
       status: data.status as InvoiceStatus,
+      error: typeof data.error === 'string' ? data.error : undefined,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
     });
   }
 }

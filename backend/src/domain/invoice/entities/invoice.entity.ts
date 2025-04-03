@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum InvoiceStatus {
+  PENDING = 'PENDING',
   PROCESSING = 'PROCESSING',
   PROCESSED = 'PROCESSED',
   ERROR = 'ERROR',
@@ -11,7 +12,7 @@ export class Invoice {
     description: 'ID da fatura',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  id: string;
+  id?: string;
 
   @ApiProperty({
     description: 'Número do cliente',
@@ -82,23 +83,34 @@ export class Invoice {
   status: InvoiceStatus;
 
   @ApiProperty({
+    description: 'Mensagem de erro em caso de falha no processamento',
+    example: 'Erro ao processar PDF',
+    required: false,
+  })
+  error?: string;
+
+  @ApiProperty({
     description: 'Data de criação da fatura',
     example: '2024-03-01T00:00:00.000Z',
   })
-  createdAt: Date;
+  createdAt?: Date;
 
   @ApiProperty({
     description: 'Data da última atualização da fatura',
     example: '2024-03-01T00:00:00.000Z',
   })
-  updatedAt: Date;
+  updatedAt?: Date;
 
   constructor(partial: Partial<Invoice>) {
     Object.assign(this, partial);
   }
 
   get totalConsumption(): number {
-    return this.electricityQuantity + this.sceeQuantity;
+    return (
+      this.electricityQuantity +
+      this.sceeQuantity +
+      this.compensatedEnergyQuantity
+    );
   }
 
   get totalValueWithoutGD(): number {
@@ -106,6 +118,6 @@ export class Invoice {
   }
 
   get economyGD(): number {
-    return this.compensatedEnergyValue;
+    return Math.abs(this.compensatedEnergyValue);
   }
 }

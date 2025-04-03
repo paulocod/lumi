@@ -2,6 +2,7 @@ import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 
 export interface IInvoiceRepository {
   create(invoice: Invoice): Promise<Invoice>;
+  findById(id: string): Promise<Invoice | null>;
   findByClientNumber(clientNumber: string): Promise<Invoice[]>;
   findByClientNumberAndMonth(
     clientNumber: string,
@@ -11,7 +12,10 @@ export interface IInvoiceRepository {
     clientNumber?: string;
     startDate?: Date;
     endDate?: Date;
-  }): Promise<Invoice[]>;
+    month?: Date;
+    page?: number;
+    limit?: number;
+  }): Promise<{ invoices: Invoice[]; total: number }>;
   findByStatus(status: InvoiceStatus): Promise<Invoice[]>;
   updateStatus(id: string, status: InvoiceStatus): Promise<Invoice>;
 }
