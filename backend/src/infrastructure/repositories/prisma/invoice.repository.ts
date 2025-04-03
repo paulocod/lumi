@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
 import { IInvoiceRepository } from '../../../domain/invoice/repositories/invoice.repository';
 import { Invoice } from '../../../domain/invoice/entities/invoice.entity';
 import { Prisma } from '@prisma/client';
 import { InvoiceStatus } from '@/domain/invoice/enums/invoice-status.enum';
+import { PrismaService } from 'prisma/prisma.service';
 
 type InvoiceWithRelations = Prisma.InvoiceGetPayload<Record<string, never>>;
 

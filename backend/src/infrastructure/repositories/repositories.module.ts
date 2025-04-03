@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaInvoiceRepository } from './prisma/invoice.repository';
 import { INVOICE_REPOSITORY } from '@/domain/invoice/invoice.tokens';
+import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
