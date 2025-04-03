@@ -17,10 +17,7 @@ import { PdfModule } from '@/domain/pdf/pdf.module';
         },
         removeOnComplete: true,
       },
-      redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      },
+      redis: process.env.REDIS_URL || 'redis://localhost:6379',
       limiter: {
         max: 5,
         duration: 1000,

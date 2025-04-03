@@ -4,11 +4,7 @@ import { BullModule } from '@nestjs/bull';
 @Module({
   imports: [
     BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        db: 1,
-      },
+      redis: process.env.REDIS_URL || 'redis://localhost:6379',
       defaultJobOptions: {
         attempts: 3,
         backoff: {
