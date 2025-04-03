@@ -17,6 +17,24 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+model Invoice {
+  id                         String   @id @default(uuid())
+  clientNumber               String
+  referenceMonth             DateTime
+  electricityQuantity        Float
+  electricityValue           Float
+  sceeQuantity               Float
+  sceeValue                  Float
+  compensatedEnergyQuantity  Float
+  compensatedEnergyValue     Float
+  publicLightingContribution Float
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@index([clientNumber])
+  @@index([referenceMonth])
+}
+
 enum Role {
   USER
   ADMIN
