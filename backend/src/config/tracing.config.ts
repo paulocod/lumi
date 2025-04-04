@@ -4,41 +4,35 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
-import * as winston from 'winston';
+import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json(),
-  ),
-  transports: [new winston.transports.Console()],
-});
+export const createTracingConfig = (configService: ConfigService) => {
+  const logger = new Logger('Tracing');
+  const resource = resourceFromAttributes({
+    'service.name': configService.get<string>('tracing.service.name'),
+    'service.version': configService.get<string>('tracing.service.version'),
+  });
 
-const resource = resourceFromAttributes({
-  'service.name': 'lumi-backend',
-  'service.version': '1.0.0',
-});
+  const sdk = new NodeSDK({
+    resource,
+    traceExporter: new OTLPTraceExporter({
+      url: configService.get<string>('tracing.jaeger.endpoint'),
+    }),
+    instrumentations: [
+      getNodeAutoInstrumentations(),
+      new NestInstrumentation(),
+      new HttpInstrumentation(),
+    ],
+  });
 
-export const otelSDK = new NodeSDK({
-  resource,
-  traceExporter: new OTLPTraceExporter({
-    url: process.env.JAEGER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  }),
-  instrumentations: [
-    getNodeAutoInstrumentations(),
-    new NestInstrumentation(),
-    new HttpInstrumentation(),
-  ],
-});
+  process.on('SIGTERM', () => {
+    void sdk
+      .shutdown()
+      .then(() => logger.log('Tracing terminated'))
+      .catch((error) => logger.error('Error terminating tracing', error))
+      .finally(() => process.exit(0));
+  });
 
-process.on('SIGTERM', () => {
-  otelSDK
-    .shutdown()
-    .then(() => logger.info('Tracing terminated'))
-    .catch((error) => logger.error('Error terminating tracing', error))
-    .finally(() => process.exit(0));
-});
+  return sdk;
+};

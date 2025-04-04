@@ -3,14 +3,23 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { otelSDK } from './config/tracing.config';
+import { createTracingConfig } from './config/tracing.config';
 import { setupSwagger } from './config/swagger.config';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  otelSDK.start();
-
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
+
+  try {
+    const otelSDK = createTracingConfig(configService);
+    otelSDK.start();
+    logger.log('OpenTelemetry SDK iniciado com sucesso');
+  } catch (error) {
+    logger.error('Erro ao iniciar OpenTelemetry SDK', error);
+  }
+
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
   setupSwagger(app);
@@ -26,7 +35,7 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT || 3001;
+  const port = configService.get<number>('app.port') ?? 3001;
   await app.listen(port);
 
   logger.log(

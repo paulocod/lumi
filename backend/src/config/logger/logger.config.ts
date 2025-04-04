@@ -1,5 +1,6 @@
 import { WinstonModuleOptions } from 'nest-winston';
 import * as winston from 'winston';
+import { ConfigService } from '@nestjs/config';
 
 const levels = {
   error: 0,
@@ -29,12 +30,17 @@ const format = winston.format.combine(
   ),
 );
 
-export const loggerConfig: WinstonModuleOptions = {
+export const createLoggerConfig = (
+  configService: ConfigService,
+): WinstonModuleOptions => ({
   levels,
   format,
   transports: [
     new winston.transports.Console({
-      level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+      level:
+        configService.get<string>('app.environment') === 'production'
+          ? 'info'
+          : 'debug',
     }),
     new winston.transports.File({
       filename: 'logs/error.log',
@@ -84,4 +90,4 @@ export const loggerConfig: WinstonModuleOptions = {
       ),
     }),
   ],
-};
+});
