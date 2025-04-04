@@ -70,16 +70,18 @@ export class PdfService {
   ) {}
 
   async extractInvoiceFromPdf(buffer: Buffer): Promise<CreateInvoiceDto> {
-    console.log('=== Início da Extração do PDF ===');
-    console.log('Buffer recebido:', {
-      isBuffer: Buffer.isBuffer(buffer),
-      length: buffer.length,
-      type: typeof buffer,
-    });
+    this.logger.debug('=== Início da Extração do PDF ===');
+    this.logger.debug(
+      `Buffer recebido: ${JSON.stringify({
+        isBuffer: Buffer.isBuffer(buffer),
+        length: buffer.length,
+        type: typeof buffer,
+      })}`,
+    );
 
     try {
       if (!Buffer.isBuffer(buffer)) {
-        console.log('Erro: Buffer inválido no PdfService');
+        this.logger.error('Erro: Buffer inválido no PdfService');
         throw new PdfExtractionError([
           {
             code: 'INVALID_BUFFER',
@@ -90,39 +92,36 @@ export class PdfService {
 
       const cached = await this.cacheService.getCachedExtraction(buffer);
       if (cached) {
-        console.log('Usando cache para extração');
+        this.logger.debug('Usando cache para extração');
         return cached.result;
       }
 
-      console.log('Iniciando processamento do PDF');
+      this.logger.debug('Iniciando processamento do PDF');
       const extraction = await this.processPdf(buffer);
 
       try {
-        console.log('Salvando extração no cache');
+        this.logger.debug('Salvando extração no cache');
         await this.cacheService.setCachedExtraction(buffer, extraction);
       } catch (error) {
-        console.log('Erro ao salvar cache:', error);
         this.logger.error('Erro ao salvar cache', error);
       }
 
       return extraction.result;
     } catch (error) {
-      console.log('Erro na extração:', error);
-      this.logger.error('Erro ao extrair fatura do PDF', error);
+      this.logger.error('Erro na extração', error);
       throw error;
     }
   }
 
   private async processPdf(buffer: Buffer): Promise<CachedExtraction> {
-    console.log('=== Início do Processamento do PDF ===');
+    this.logger.debug('=== Início do Processamento do PDF ===');
     try {
       await this.validationService.validatePdf(buffer);
       const data = (await pdf(buffer)) as PdfData;
       const text = data.text;
 
       if (!text || text.trim().length === 0) {
-        console.log('Erro: PDF não contém texto extraível');
-        this.logger.error('PDF não contém texto extraível');
+        this.logger.error('Erro: PDF não contém texto extraível');
         throw new PdfExtractionError([
           {
             code: 'PDF_EMPTY',
@@ -131,27 +130,27 @@ export class PdfService {
         ]);
       }
 
-      console.log('Texto extraído do PDF:', text.substring(0, 500) + '...');
+      this.logger.debug(`Texto extraído do PDF: ${text.substring(0, 500)}...`);
 
-      console.log('Tentando extração via layout');
+      this.logger.debug('Tentando extração via layout');
       const layoutExtraction = await this.layoutService.extract(text);
-      console.log('Resultado da extração via layout:', layoutExtraction);
+      this.logger.debug(
+        `Resultado da extração via layout: ${JSON.stringify(layoutExtraction)}`,
+      );
 
       if (!this.isExtractionComplete(layoutExtraction)) {
-        console.log('Extração via layout incompleta, usando método fallback');
         this.logger.warn(
           'Extração via layout incompleta, usando método fallback',
         );
         return this.fallbackExtraction(text);
       }
 
-      console.log('Extração via layout bem sucedida');
+      this.logger.debug('Extração via layout bem sucedida');
       const validation = this.validationService.validateExtractedData(
         layoutExtraction as CreateInvoiceDto,
       );
 
       if (!validation.isValid || !validation.data) {
-        console.log('Validação dos dados extraídos falhou:', validation.errors);
         this.logger.error(
           `Validação dos dados extraídos falhou: ${validation.errors.join(', ')}`,
         );
@@ -163,7 +162,7 @@ export class PdfService {
         );
       }
 
-      console.log('Validação dos dados extraídos bem sucedida');
+      this.logger.debug('Validação dos dados extraídos bem sucedida');
       const hash = this.cacheService.generatePdfHash(buffer);
 
       return {
@@ -187,16 +186,12 @@ export class PdfService {
       };
     } catch (error) {
       if (error instanceof PdfExtractionError) {
-        console.log('Erro de extração:', error.errors);
-        this.logger.error(
-          `Erro de extração do PDF: ${error.errors.map((e) => e.message).join(', ')}`,
-        );
+        this.logger.error(`Erro de extração: ${JSON.stringify(error.errors)}`);
         throw error;
       }
 
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
-      console.log('Erro ao processar PDF:', errorMessage);
       this.logger.error(`Erro ao processar PDF: ${errorMessage}`);
       throw new PdfExtractionError([
         {

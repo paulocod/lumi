@@ -21,7 +21,7 @@ export class PdfValidationService {
   async validatePdf(buffer: Buffer): Promise<void> {
     try {
       const maxSize =
-        this.configService.get<number>('pdf.maxSize') ?? 5 * 1024 * 1024; // 5MB padrão
+        this.configService.get<number>('pdf.maxSize') ?? 5 * 1024 * 1024;
       if (buffer.length > maxSize) {
         throw new PdfValidationError(
           `PDF excede o tamanho máximo permitido de ${maxSize / 1024 / 1024}MB`,
