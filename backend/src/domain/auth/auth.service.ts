@@ -1,10 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from '../../presentation/auth/dto/login.dto';
 import { RegisterDto } from '../../presentation/auth/dto/register.dto';
 import { User } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 type UserWithoutPassword = Omit<User, 'password'>;
 
@@ -19,6 +21,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   private generateTokens(user: User) {
@@ -87,6 +90,12 @@ export class AuthService {
 
     const { accessToken, refreshToken } = this.generateTokens(user);
 
+    await this.cacheManager.set(
+      `refresh_token:${user.id}`,
+      refreshToken,
+      7 * 24 * 60 * 60 * 1000,
+    );
+
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -110,6 +119,14 @@ export class AuthService {
 
       if (!user) {
         throw new UnauthorizedException('Token inválido');
+      }
+
+      const cachedRefreshToken = await this.cacheManager.get<string>(
+        `refresh_token:${user.id}`,
+      );
+
+      if (!cachedRefreshToken || cachedRefreshToken !== refreshToken) {
+        throw new UnauthorizedException('Token inválido ou expirado');
       }
 
       const { accessToken } = this.generateTokens(user);

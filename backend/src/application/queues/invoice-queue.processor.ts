@@ -27,6 +27,7 @@ import {
 import { PdfSource } from '@/domain/pdf/types/pdf-types';
 import { InvoiceStatus } from '@/domain/invoice/enums/invoice-status.enum';
 import { PrismaService } from 'prisma/prisma.service';
+import { LoggerService } from '@/config/logger';
 
 interface InvoiceJobData {
   pdf: PdfSource;
@@ -43,6 +44,7 @@ export class InvoiceQueueProcessor implements OnModuleInit {
     private pdfService: PdfService,
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
+    private readonly customLogger: LoggerService,
     @InjectQueue('invoice-processing')
     private invoiceQueue: Queue<InvoiceJobData>,
   ) {
@@ -121,15 +123,17 @@ export class InvoiceQueueProcessor implements OnModuleInit {
 
   @Process('process-invoice')
   async handleInvoiceProcessing(job: Job<InvoiceJobData>) {
-    console.log('=== Início do Processamento do Job ===');
-    console.log('Job data:', {
-      jobId: job.id,
-      invoiceId: job.data.invoiceId,
-      pdfType: job.data.pdf.type,
-      pdfDataType: typeof job.data.pdf.data,
-      isBuffer: Buffer.isBuffer(job.data.pdf.data),
-      isArray: Array.isArray(job.data.pdf.data),
-    });
+    this.customLogger.debug('=== Início do Processamento do Job ===');
+    this.customLogger.debug(
+      `Job data: ${JSON.stringify({
+        jobId: job.id,
+        invoiceId: job.data.invoiceId,
+        pdfType: job.data.pdf.type,
+        pdfDataType: typeof job.data.pdf.data,
+        isBuffer: Buffer.isBuffer(job.data.pdf.data),
+        isArray: Array.isArray(job.data.pdf.data),
+      })}`,
+    );
 
     try {
       const invoice = await this.prisma.invoice.findUnique({
@@ -137,7 +141,7 @@ export class InvoiceQueueProcessor implements OnModuleInit {
       });
 
       if (!invoice) {
-        console.log('Erro: Fatura não encontrada');
+        this.customLogger.error('Erro: Fatura não encontrada');
         throw new PdfProcessingError(
           `Fatura não encontrada: ${job.data.invoiceId}`,
         );
@@ -150,37 +154,41 @@ export class InvoiceQueueProcessor implements OnModuleInit {
 
       let pdfBuffer: Buffer;
       if (job.data.pdf.type === 'url') {
-        console.log('Processando PDF via URL');
+        this.customLogger.debug('Processando PDF via URL');
         if (typeof job.data.pdf.data !== 'string') {
           throw new PdfProcessingError('URL do PDF deve ser uma string');
         }
         pdfBuffer = await this.downloadPdfFromUrl(job.data.pdf.data);
       } else {
-        console.log('Processando PDF via Buffer');
+        this.customLogger.debug('Processando PDF via Buffer');
         const bufferData = job.data.pdf.data;
-        console.log('Buffer data:', {
-          type: typeof bufferData,
-          isBuffer: Buffer.isBuffer(bufferData),
-          isArray: Array.isArray(bufferData),
-        });
+        this.customLogger.debug(
+          `Buffer data: ${JSON.stringify({
+            type: typeof bufferData,
+            isBuffer: Buffer.isBuffer(bufferData),
+            isArray: Array.isArray(bufferData),
+          })}`,
+        );
 
         if (Buffer.isBuffer(bufferData)) {
-          console.log('Usando buffer existente');
+          this.customLogger.debug('Usando buffer existente');
           pdfBuffer = bufferData;
         } else if (Array.isArray(bufferData)) {
-          console.log('Convertendo array para buffer');
+          this.customLogger.debug('Convertendo array para buffer');
           pdfBuffer = Buffer.from(bufferData);
         } else {
-          console.log('Erro: Buffer inválido');
+          this.customLogger.error('Erro: Buffer inválido');
           throw new PdfProcessingError('O buffer fornecido não é válido');
         }
       }
 
-      console.log('Buffer final:', {
-        isBuffer: Buffer.isBuffer(pdfBuffer),
-        length: pdfBuffer.length,
-        type: typeof pdfBuffer,
-      });
+      this.customLogger.debug(
+        `Buffer final: ${JSON.stringify({
+          isBuffer: Buffer.isBuffer(pdfBuffer),
+          length: pdfBuffer.length,
+          type: typeof pdfBuffer,
+        })}`,
+      );
 
       const invoiceData =
         await this.pdfService.extractInvoiceFromPdf(pdfBuffer);
