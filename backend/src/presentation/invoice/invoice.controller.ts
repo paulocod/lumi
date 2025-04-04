@@ -29,12 +29,16 @@ import { UploadInvoiceUrlDto } from '@/domain/invoice/dto/upload-invoice.dto';
 import { PdfSource } from '@/domain/pdf/types/pdf-types';
 import { Auth } from '../../domain/auth/decorators/auth.decorator';
 import { Role } from '@prisma/client';
+import { LoggerService } from '@/config/logger';
 
 @ApiTags('invoices')
 @Controller('invoices')
 @Auth()
 export class InvoiceController {
-  constructor(private readonly invoiceService: InvoiceService) {}
+  constructor(
+    private readonly invoiceService: InvoiceService,
+    private readonly logger: LoggerService,
+  ) {}
 
   @Post('upload')
   @Auth(Role.ADMIN)
@@ -87,40 +91,44 @@ export class InvoiceController {
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.CREATED)
   async uploadInvoiceBuffer(@UploadedFile() file: Express.Multer.File) {
-    console.log('=== Início do Upload de Buffer ===');
-    console.log('File recebido:', {
-      filename: file?.originalname,
-      mimetype: file?.mimetype,
-      size: file?.size,
-      bufferType: file?.buffer ? typeof file.buffer : 'undefined',
-      isBuffer: file?.buffer ? Buffer.isBuffer(file.buffer) : false,
-    });
+    this.logger.debug('=== Início do Upload de Buffer ===');
+    this.logger.debug(
+      `File recebido: ${JSON.stringify({
+        filename: file?.originalname,
+        mimetype: file?.mimetype,
+        size: file?.size,
+        bufferType: file?.buffer ? typeof file.buffer : 'undefined',
+        isBuffer: file?.buffer ? Buffer.isBuffer(file.buffer) : false,
+      })}`,
+    );
 
     if (!file || !file.buffer) {
-      console.log('Erro: Nenhum arquivo ou buffer recebido');
+      this.logger.error('Erro: Nenhum arquivo ou buffer recebido');
       throw new BadRequestException('Nenhum arquivo enviado');
     }
 
     if (file.mimetype !== 'application/pdf') {
-      console.log('Erro: Tipo de arquivo inválido:', file.mimetype);
+      this.logger.error(`Erro: Tipo de arquivo inválido: ${file.mimetype}`);
       throw new BadRequestException('O arquivo deve ser um PDF');
     }
 
     if (!Buffer.isBuffer(file.buffer)) {
-      console.log('Erro: Buffer inválido');
+      this.logger.error('Erro: Buffer inválido');
       throw new BadRequestException('O buffer do arquivo não é válido');
     }
 
-    console.log('Buffer válido, criando PdfSource');
+    this.logger.debug('Buffer válido, criando PdfSource');
     const pdfSource: PdfSource = {
       type: 'buffer',
       data: file.buffer,
     };
-    console.log('PdfSource criado:', {
-      type: pdfSource.type,
-      dataType: typeof pdfSource.data,
-      isBuffer: Buffer.isBuffer(pdfSource.data),
-    });
+    this.logger.debug(
+      `PdfSource criado: ${JSON.stringify({
+        type: pdfSource.type,
+        dataType: typeof pdfSource.data,
+        isBuffer: Buffer.isBuffer(pdfSource.data),
+      })}`,
+    );
 
     return this.invoiceService.uploadInvoice(pdfSource);
   }
