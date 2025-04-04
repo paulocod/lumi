@@ -15,8 +15,11 @@ COPY . .
 # Gerar o build
 RUN npm run build
 
+# Gerar o Prisma Client
+RUN npx prisma generate
+
 # Expor a porta
 EXPOSE 3001
 
-# Comando para executar a aplicação
-CMD ["node", "dist/src/main.js"]
+# Comando para iniciar a aplicação
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npm run start:prod"]

@@ -1,0 +1,13 @@
+node_modules
+logs
+*.log
+.env
+.env.*
+coverage
+.nyc_output
+.idea
+.vscode
+*.swp
+*.swo
+.npm
+.eslintcache
