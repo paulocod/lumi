@@ -87,7 +87,7 @@ services:
       - "4317:4317"
       - "4318:4318"
     environment:
-      - LOG_LEVEL=debug
+      - LOG_LEVEL=${OTEL_LOG_LEVEL}
     networks:
       - lumi-network
 

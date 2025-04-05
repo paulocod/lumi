@@ -1,7 +1,6 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { INestApplication } from '@nestjs/common';
-import { Invoice } from '../domain/invoice/entities/invoice.entity';
-import { UploadInvoiceUrlDto } from '../domain/invoice/dto/upload-invoice.dto';
+import { Invoice } from '@/modules/invoice/entities/invoice.entity';
 
 export function setupSwagger(app: INestApplication) {
   const config = new DocumentBuilder()
@@ -23,7 +22,7 @@ export function setupSwagger(app: INestApplication) {
     .build();
 
   const document = SwaggerModule.createDocument(app, config, {
-    extraModels: [Invoice, UploadInvoiceUrlDto],
+    extraModels: [Invoice],
   });
 
   SwaggerModule.setup('api', app, document, {

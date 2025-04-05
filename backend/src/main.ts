@@ -8,7 +8,7 @@ import { setupSwagger } from './config/swagger.config';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: false });
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
 
@@ -40,9 +40,9 @@ async function bootstrap() {
 
   logger.log(
     'Aplicação rodando em: ' +
-      `http://localhost:${port}\n` +
-      'Documentação Swagger disponível em: ' +
-      `http://localhost:${port}/api`,
+    `http://localhost:${port}\n` +
+    'Documentação Swagger disponível em: ' +
+    `http://localhost:${port}/api`,
   );
 }
 

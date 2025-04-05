@@ -2,20 +2,20 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { HealthModule } from './health/health.module';
+import { HealthModule } from './modules/health/health.module';
 import { LoggerModule } from './config/logger';
-import { RedisCacheModule } from './config/cache.module';
-import { InvoiceModule } from './domain/invoice/invoice.module';
-import { PdfModule } from './domain/pdf/pdf.module';
-import { InvoiceQueueModule } from './application/queues/invoice-queue.module';
-import { BullConfigModule } from './config/bull.module';
+import { RedisCacheModule } from './infrastructure/cache/cache.module';
+import { PdfModule } from './modules/pdf/pdf.module';
+import { InvoiceQueueModule } from './queue/queue.module';
+import { BullConfigModule } from './queue/infrastructure/bull.module';
 import { InvoiceSharedModule } from './shared/invoice-shared.module';
-import { AuthModule } from './domain/auth/auth.module';
-import { RolesGuard } from './domain/auth/guards/roles.guard';
+import { RolesGuard } from './shared/guards/roles.guard';
 import { appConfig, pdfConfig, queueConfig } from './config/app.config';
 import { PrismaModule } from 'prisma/prisma.module';
-import { DashboardModule } from './presentation/dashboard/dashboard.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { TracingModule } from './config/tracing/tracing.module';
+import { InvoiceModule } from './modules/invoice/invoice.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [

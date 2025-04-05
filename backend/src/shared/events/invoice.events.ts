@@ -1,4 +1,4 @@
-import { PdfSource } from '../../domain/pdf/types/pdf-types';
+import { PdfSource } from '../../modules/pdf/types/pdf-types';
 
 export interface InvoiceCreatedEvent {
   invoiceId: string;
