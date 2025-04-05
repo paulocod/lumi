@@ -26,6 +26,14 @@ export function Layout({ children }: LayoutProps) {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-lumi-gray-50">
       {/* Header */}
@@ -51,8 +59,9 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex items-center gap-x-4">
               <span className="text-sm font-medium text-lumi-gray-700">{user?.name}</span>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="text-lumi-gray-700 hover:text-lumi-gray-900 hover:bg-lumi-green-50 p-2 rounded-full transition-colors duration-200"
+                title="Sair"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -62,37 +71,42 @@ export function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-30 w-64 transform transition-transform duration-200 ease-in-out lg:translate-x-0 pt-16 hidden lg:block">
-        <div className="h-full bg-white border-r border-lumi-gray-200">
-          <nav className="flex flex-col h-full overflow-y-auto px-3 py-4">
-            <div className="space-y-1">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`group flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
-                      isActive(item.href)
-                        ? 'bg-lumi-green-50 text-lumi-green-700'
-                        : 'text-lumi-gray-700 hover:bg-lumi-green-50 hover:text-lumi-green-700'
-                    }`}
-                  >
-                    <Icon
-                      className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors duration-200 ${
-                        isActive(item.href)
-                          ? 'text-lumi-green-700'
-                          : 'text-lumi-gray-400 group-hover:text-lumi-green-700'
-                      }`}
-                      aria-hidden="true"
-                    />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
+      <div
+        className={`fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-lumi-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="h-16 flex items-center px-6 border-b border-lumi-gray-200">
+          <h1 className="text-xl font-bold text-lumi-green-800">Lumi</h1>
         </div>
+        <nav className="mt-6 px-4">
+          <div className="space-y-1">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    isActive(item.href)
+                      ? 'bg-lumi-green-50 text-lumi-green-800'
+                      : 'text-lumi-gray-700 hover:bg-lumi-gray-50 hover:text-lumi-gray-900'
+                  }`}
+                >
+                  <Icon
+                    className={`mr-3 h-5 w-5 ${
+                      isActive(item.href)
+                        ? 'text-lumi-green-800'
+                        : 'text-lumi-gray-400 group-hover:text-lumi-gray-500'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
       </div>
 
       {/* Mobile Sidebar */}
