@@ -1,72 +1,62 @@
-import { Injectable, Inject } from '@nestjs/common';
-
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { IInvoiceRepository } from '@/modules/invoice/repositories/invoice.repository.interface';
-import {
-  DashboardSummaryDto,
-  EnergyDataDto,
-  FinancialDataDto,
-} from '../dtos/dashboard.dto';
+import { DashboardDataDto, DashboardSummaryDto } from '../dtos/dashboard.dto';
 import { PrismaInvoiceRepository } from '@/modules/invoice/repositories/invoice.repository';
 
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+
   constructor(
     @Inject(PrismaInvoiceRepository)
     private readonly invoiceRepository: IInvoiceRepository,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
-  async getEnergyData(
+  async getAllDashboardData(
     clientNumber?: string,
     startDate?: Date,
     endDate?: Date,
-  ): Promise<EnergyDataDto[]> {
-    const cacheKey = `dashboard:energy:${clientNumber}:${startDate?.toISOString()}:${endDate?.toISOString()}`;
+  ): Promise<DashboardDataDto> {
+    this.logger.debug(
+      `Buscando todos os dados do dashboard para cliente: ${clientNumber || 'todos'}`,
+    );
 
-    const cached = await this.cacheManager.get<EnergyDataDto[]>(cacheKey);
+    const cacheKey = `dashboard:all:${clientNumber}:${startDate?.toISOString()}:${endDate?.toISOString()}`;
+
+    const cached = await this.cacheManager.get<DashboardDataDto>(cacheKey);
     if (cached) {
+      this.logger.debug('Todos os dados do dashboard encontrados no cache');
       return cached;
     }
 
+    this.logger.debug(
+      'Dados do dashboard não encontrados no cache, buscando do banco',
+    );
+
+    // Buscar faturas do banco de dados
     const { invoices } = await this.invoiceRepository.findAll({
       clientNumber,
       startDate,
       endDate,
     });
 
-    const data = invoices.map((invoice) => ({
+    this.logger.debug(
+      `Processando ${invoices.length} faturas para o dashboard`,
+    );
+
+    // Processar dados de energia
+    const energyData = invoices.map((invoice) => ({
       electricityConsumption:
         invoice.electricityQuantity + invoice.sceeQuantity,
       compensatedEnergy: invoice.compensatedEnergyQuantity,
       month: invoice.referenceMonth,
     }));
 
-    await this.cacheManager.set(cacheKey, data, 1800 * 1000);
-
-    return data;
-  }
-
-  async getFinancialData(
-    clientNumber?: string,
-    startDate?: Date,
-    endDate?: Date,
-  ): Promise<FinancialDataDto[]> {
-    const cacheKey = `dashboard:financial:${clientNumber}:${startDate?.toISOString()}:${endDate?.toISOString()}`;
-
-    const cached = await this.cacheManager.get<FinancialDataDto[]>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    const { invoices } = await this.invoiceRepository.findAll({
-      clientNumber,
-      startDate,
-      endDate,
-    });
-
-    const data = invoices.map((invoice) => ({
+    // Processar dados financeiros
+    const financialData = invoices.map((invoice) => ({
       totalWithoutGD:
         invoice.electricityValue +
         invoice.sceeValue +
@@ -75,29 +65,7 @@ export class DashboardService {
       month: invoice.referenceMonth,
     }));
 
-    await this.cacheManager.set(cacheKey, data, 1800 * 1000);
-
-    return data;
-  }
-
-  async getSummary(
-    clientNumber?: string,
-    startDate?: Date,
-    endDate?: Date,
-  ): Promise<DashboardSummaryDto> {
-    const cacheKey = `dashboard:summary:${clientNumber}:${startDate?.toISOString()}:${endDate?.toISOString()}`;
-
-    const cached = await this.cacheManager.get<DashboardSummaryDto>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    const { invoices } = await this.invoiceRepository.findAll({
-      clientNumber,
-      startDate,
-      endDate,
-    });
-
+    // Calcular resumo
     const totalElectricityConsumption = invoices.reduce(
       (acc, invoice) =>
         acc + invoice.electricityQuantity + invoice.sceeQuantity,
@@ -126,7 +94,7 @@ export class DashboardService {
     const savingsPercentage =
       totalWithoutGD > 0 ? (totalGDSavings / totalWithoutGD) * 100 : 0;
 
-    const data = {
+    const summary: DashboardSummaryDto = {
       totalElectricityConsumption,
       totalCompensatedEnergy,
       totalWithoutGD,
@@ -134,7 +102,16 @@ export class DashboardService {
       savingsPercentage: Number(savingsPercentage.toFixed(2)),
     };
 
+    const data: DashboardDataDto = {
+      energyData,
+      financialData,
+      summary,
+    };
+
     await this.cacheManager.set(cacheKey, data, 1800 * 1000);
+    this.logger.debug(
+      'Todos os dados do dashboard processados e armazenados no cache',
+    );
 
     return data;
   }

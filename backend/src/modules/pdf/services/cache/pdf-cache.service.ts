@@ -132,7 +132,7 @@ export class PdfCacheService {
         compensatedEnergyValue: extraction.result.compensatedEnergyValue,
         publicLightingValue: extraction.result.publicLightingValue,
         pdfUrl: extraction.result.pdfUrl,
-        status: extraction.result.status,
+        status: extraction.result.status as InvoiceStatus,
       },
       confidence: extraction.confidence,
       timestamp: extraction.timestamp.toISOString(),

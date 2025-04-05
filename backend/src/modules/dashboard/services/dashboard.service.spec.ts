@@ -56,7 +56,7 @@ describe('DashboardService', () => {
         total: mockInvoices.length,
       });
 
-      const result = await service.getEnergyData();
+      const result = await service.getAllDashboardData();
 
       expect(result).toEqual([
         {
@@ -93,7 +93,7 @@ describe('DashboardService', () => {
         total: mockInvoices.length,
       });
 
-      const result = await service.getFinancialData();
+      const result = await service.getAllDashboardData();
 
       expect(result).toEqual([
         {

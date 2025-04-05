@@ -71,3 +71,23 @@ export class DashboardSummaryDto {
   })
   savingsPercentage: number;
 }
+
+export class DashboardDataDto {
+  @ApiProperty({
+    description: 'Dados de consumo de energia por mês',
+    type: [EnergyDataDto],
+  })
+  energyData: EnergyDataDto[];
+
+  @ApiProperty({
+    description: 'Dados financeiros por mês',
+    type: [FinancialDataDto],
+  })
+  financialData: FinancialDataDto[];
+
+  @ApiProperty({
+    description: 'Resumo geral dos dados',
+    type: DashboardSummaryDto,
+  })
+  summary: DashboardSummaryDto;
+}

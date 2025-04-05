@@ -9,8 +9,8 @@ async function main() {
 
   console.log('Dados anteriores removidos com sucesso');
 
-  const hashedPassword = await bcrypt.hash('admin123', 10);
-  const userPassword = await bcrypt.hash('user123', 10);
+  const hashedPassword = await bcrypt.hash('admin@123', 10);
+  const userPassword = await bcrypt.hash('user@123', 10);
 
   await prisma.user.upsert({
     where: { email: 'admin@example.com' },

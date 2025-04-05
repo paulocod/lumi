@@ -40,9 +40,9 @@ async function bootstrap() {
 
   logger.log(
     'Aplicação rodando em: ' +
-    `http://localhost:${port}\n` +
-    'Documentação Swagger disponível em: ' +
-    `http://localhost:${port}/api`,
+      `http://localhost:${port}\n` +
+      'Documentação Swagger disponível em: ' +
+      `http://localhost:${port}/api`,
   );
 }
 

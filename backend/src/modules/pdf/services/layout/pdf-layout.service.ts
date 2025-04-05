@@ -263,8 +263,8 @@ export class PdfLayoutService {
     ];
 
     for (const field of numericFields) {
-      const value = result[field as keyof typeof result];
-      if (typeof value !== 'number' || isNaN(value)) {
+      const value = (result as Record<string, number>)[field];
+      if (value === undefined || typeof value !== 'number' || isNaN(value)) {
         this.logger.error(`Erro: Campo ${field} inválido: ${String(value)}`);
         return {};
       }
