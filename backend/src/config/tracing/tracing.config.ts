@@ -6,9 +6,13 @@ import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core'
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
+import { PrismaInstrumentation } from '@prisma/instrumentation';
 
 export const createTracingConfig = (configService: ConfigService) => {
   const logger = new Logger('Tracing');
+
+  const otlpUrl = configService.get<string>('tracing.jaeger.endpoint');
+
   const resource = resourceFromAttributes({
     'service.name': configService.get<string>('tracing.service.name'),
     'service.version': configService.get<string>('tracing.service.version'),
@@ -17,12 +21,13 @@ export const createTracingConfig = (configService: ConfigService) => {
   const sdk = new NodeSDK({
     resource,
     traceExporter: new OTLPTraceExporter({
-      url: configService.get<string>('tracing.jaeger.endpoint'),
+      url: otlpUrl,
     }),
     instrumentations: [
       getNodeAutoInstrumentations(),
       new NestInstrumentation(),
       new HttpInstrumentation(),
+      new PrismaInstrumentation(),
     ],
   });
 
