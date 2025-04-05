@@ -1,46 +1,45 @@
-import axios from 'axios';
+import { api } from './axios';
 import type { Invoice, InvoiceFilters } from '../types/invoice';
 import type { EnergyDataDto, FinancialDataDto, DashboardSummaryDto } from '../types/dashboard';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+interface PaginatedResponse<T> {
+  invoices: T[];
+  total: number;
+}
 
 export const invoiceService = {
-  getInvoices: async (filters?: InvoiceFilters) => {
+  getInvoices: async (filters?: InvoiceFilters & { page?: number; limit?: number }) => {
     // Converter as datas para o formato ISO
-    const params: Record<string, string> = {};
+    const params: Record<string, string | number> = {};
 
     if (filters?.clientNumber) {
       params.clientNumber = filters.clientNumber;
     }
 
     if (filters?.startDate) {
-      const startDate = new Date(filters.startDate + '-01');
+      const startDate = new Date(filters.startDate);
       params.startDate = startDate.toISOString();
     }
 
     if (filters?.endDate) {
-      const endDate = new Date(filters.endDate + '-01');
-      endDate.setMonth(endDate.getMonth() + 1);
-      endDate.setDate(0); // Último dia do mês
+      const endDate = new Date(filters.endDate);
       endDate.setHours(23, 59, 59, 999);
       params.endDate = endDate.toISOString();
     }
 
+    if (filters?.page) {
+      params.page = filters.page;
+    }
+
+    if (filters?.limit) {
+      params.limit = filters.limit;
+    }
+
     console.log('[API] Buscando faturas com filtros:', params);
     try {
-      const { data } = await api.get<{ invoices: Invoice[]; total: number }>('/invoices', { params });
+      const { data } = await api.get<PaginatedResponse<Invoice>>('/invoices', { params });
       console.log('[API] Faturas recebidas:', data);
-      return data.invoices;
+      return data;
     } catch (error) {
       console.error('[API] Erro ao buscar faturas:', error);
       throw error;
@@ -55,6 +54,11 @@ export const invoiceService = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return data;
+  },
+
+  retryInvoice: async (invoiceId: string) => {
+    const { data } = await api.post<Invoice>(`/invoices/${invoiceId}/retry`);
     return data;
   },
 };

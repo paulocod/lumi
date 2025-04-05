@@ -134,7 +134,7 @@ export class InvoiceController {
   }
 
   @Get('status/:invoiceId')
-  @Auth(Role.USER)
+  @Auth(Role.ADMIN)
   @ApiOperation({ summary: 'Buscar status de processamento da fatura' })
   @ApiParam({
     name: 'invoiceId',
@@ -165,7 +165,7 @@ export class InvoiceController {
   }
 
   @Get()
-  @Auth(Role.ADMIN)
+  @Auth(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Listar faturas com filtros' })
   @ApiQuery({
     name: 'clientNumber',

@@ -20,6 +20,8 @@ export interface InvoiceFilters {
   clientNumber?: string;
   startDate?: string;
   endDate?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface DashboardData {
@@ -39,4 +41,9 @@ export interface DashboardData {
     totalValueWithoutGD: number;
     totalGdSavings: number;
   };
+}
+
+export interface PaginatedInvoiceResponse {
+  invoices: Invoice[];
+  total: number;
 }
