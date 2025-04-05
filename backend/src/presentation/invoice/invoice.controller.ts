@@ -165,7 +165,7 @@ export class InvoiceController {
   }
 
   @Get()
-  @Auth(Role.USER)
+  @Auth(Role.ADMIN)
   @ApiOperation({ summary: 'Listar faturas com filtros' })
   @ApiQuery({
     name: 'clientNumber',
