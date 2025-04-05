@@ -3,7 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { createTracingConfig } from './config/tracing.config';
+import { createTracingConfig } from './config/tracing/tracing.config';
 import { setupSwagger } from './config/swagger.config';
 import { ConfigService } from '@nestjs/config';
 

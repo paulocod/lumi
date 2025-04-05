@@ -73,6 +73,7 @@ export const tracingConfig = registerAs('tracing', () => ({
     version: process.env.OTEL_SERVICE_VERSION || '1.0.0',
   },
   jaeger: {
-    endpoint: process.env.JAEGER_OTLP_ENDPOINT || 'http://localhost:4317',
+    endpoint:
+      process.env.JAEGER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
   },
 }));

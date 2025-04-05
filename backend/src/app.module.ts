@@ -15,6 +15,7 @@ import { RolesGuard } from './domain/auth/guards/roles.guard';
 import { appConfig, pdfConfig, queueConfig } from './config/app.config';
 import { PrismaModule } from 'prisma/prisma.module';
 import { DashboardModule } from './presentation/dashboard/dashboard.module';
+import { TracingModule } from './config/tracing/tracing.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { DashboardModule } from './presentation/dashboard/dashboard.module';
     InvoiceModule,
     InvoiceQueueModule,
     AuthModule,
+    TracingModule,
   ],
   providers: [RolesGuard],
 })
