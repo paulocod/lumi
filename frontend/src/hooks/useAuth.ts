@@ -24,7 +24,8 @@ export function useAuth() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
+    console.log('[Auth] Token no localStorage:', token ? 'Presente' : 'Ausente');
     if (token) {
       checkAuth();
     } else {
@@ -34,36 +35,44 @@ export function useAuth() {
 
   const checkAuth = async () => {
     try {
+      console.log('[Auth] Verificando autenticação...');
       const data = await authService.refreshToken();
+      console.log('[Auth] Refresh token bem sucedido:', data);
       setState({
         user: data.user,
         isAuthenticated: true,
         isLoading: false,
         error: null,
       });
-    } catch {
+    } catch (error) {
+      console.error('[Auth] Erro ao verificar autenticação:', error);
       setState({
         user: null,
         isAuthenticated: false,
         isLoading: false,
         error: 'Sessão expirada',
       });
-      localStorage.removeItem('token');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
     }
   };
 
   const login = async (email: string, password: string) => {
     try {
+      console.log('[Auth] Iniciando login...');
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       const data = await authService.login(email, password);
-      localStorage.setItem('token', data.token);
+      console.log('[Auth] Login bem sucedido:', data);
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('refresh_token', data.refresh_token);
       setState({
         user: data.user,
         isAuthenticated: true,
         isLoading: false,
         error: null,
       });
-    } catch {
+    } catch (error) {
+      console.error('[Auth] Erro ao fazer login:', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -73,7 +82,9 @@ export function useAuth() {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    console.log('[Auth] Realizando logout...');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     setState({
       user: null,
       isAuthenticated: false,
