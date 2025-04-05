@@ -12,7 +12,7 @@ async function main() {
   const hashedPassword = await bcrypt.hash('admin123', 10);
   const userPassword = await bcrypt.hash('user123', 10);
 
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
     create: {
@@ -23,7 +23,7 @@ async function main() {
     },
   });
 
-  const user = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'user@example.com' },
     update: {},
     create: {
@@ -34,9 +34,7 @@ async function main() {
     },
   });
 
-  console.log('Usuários criados:', { admin, user });
-
-  const invoices = await Promise.all([
+  await Promise.all([
     prisma.invoice.create({
       data: {
         clientNumber: '123456789',
@@ -83,7 +81,6 @@ async function main() {
     }),
   ]);
 
-  console.log('Faturas criadas:', invoices);
   console.log('Seed concluído com sucesso!');
 }
 
