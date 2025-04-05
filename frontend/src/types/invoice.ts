@@ -1,12 +1,19 @@
 export interface Invoice {
   id: string;
   clientNumber: string;
-  consumptionDate: string;
-  totalConsumption: number;
-  compensatedEnergy: number;
-  totalValueWithoutGD: number;
-  gdSavings: number;
-  pdfUrl: string;
+  referenceMonth: string;
+  electricityQuantity: number;
+  electricityValue: number;
+  sceeQuantity: number;
+  sceeValue: number;
+  compensatedEnergyQuantity: number;
+  compensatedEnergyValue: number;
+  publicLightingValue: number;
+  pdfUrl?: string;
+  status: string;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface InvoiceFilters {
