@@ -1,8 +1,7 @@
-import { CreateInvoiceDto } from '@/modules/invoice/dtos/create-invoice.dto';
-
 export type PdfSource = {
-  type: 'buffer' | 'url';
+  type: 'buffer' | 'url' | 'bucket';
   data: string | Buffer | number[];
+  key?: string;
 };
 
 export interface ExtractionConfidence {
@@ -12,17 +11,14 @@ export interface ExtractionConfidence {
   method: string;
 }
 
-export interface CachedExtraction {
-  hash: string;
-  result: CreateInvoiceDto;
+export interface PdfExtractionResult<T> {
+  data: T;
   confidence: ExtractionConfidence[];
-  timestamp: Date;
-}
-
-export interface InvoiceValidation {
-  isValid: boolean;
-  errors: string[];
-  data?: CreateInvoiceDto;
+  metadata: {
+    numPages: number;
+    layout: string;
+    processingTime: number;
+  };
 }
 
 export interface ExtractionError {
@@ -32,18 +28,42 @@ export interface ExtractionError {
   suggestion?: string;
 }
 
-export interface PdfLayout {
+export interface PdfLayout<T> {
   name: string;
+  version: string;
   patterns: Record<string, RegExp[]>;
-  extract: (text: string) => Promise<Partial<CreateInvoiceDto>>;
+  extract: (text: string) => Promise<Partial<T>>;
+  validate: (data: Partial<T>) => boolean;
+}
+
+export interface PdfValidationResult {
+  isValid: boolean;
+  errors: string[];
+  metadata?: {
+    numPages: number;
+    fileSize: number;
+    processingTime: number;
+  };
+}
+
+export interface CachedExtraction {
+  hash: string;
+  result: Record<string, any>;
+  confidence: ExtractionConfidence[];
+  timestamp: Date;
 }
 
 export class PdfExtractionError extends Error {
   constructor(
     public readonly errors: ExtractionError[],
-    public readonly partialData?: Partial<CreateInvoiceDto>,
+    public readonly partialData?: Record<string, any>,
   ) {
     super('PDF extraction failed');
     this.name = 'PdfExtractionError';
   }
+}
+
+// Interface para registro de layouts
+export interface PdfLayoutRegistry {
+  [key: string]: PdfLayout<any>;
 }
