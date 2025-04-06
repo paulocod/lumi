@@ -19,4 +19,5 @@ export interface IInvoiceRepository {
   }): Promise<{ invoices: Invoice[]; total: number }>;
   findByStatus(status: InvoiceStatus): Promise<Invoice[]>;
   updateStatus(id: string, status: InvoiceStatus): Promise<Invoice>;
+  update(id: string, data: Partial<Invoice>): Promise<Invoice>;
 }

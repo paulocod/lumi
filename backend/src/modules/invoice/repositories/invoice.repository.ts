@@ -113,6 +113,18 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     return this.mapToInvoice(updatedInvoice);
   }
 
+  async update(id: string, data: Partial<Invoice>): Promise<Invoice> {
+    const updatedInvoice = await this.prisma.invoice.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+    });
+
+    return this.mapToInvoice(updatedInvoice);
+  }
+
   async findById(id: string): Promise<Invoice | null> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
