@@ -1,26 +1,25 @@
-export interface ChartDataset {
-  [key: string]: string | number;
-  date: string;
-}
-
-export interface EnergyDataDto {
+export interface EnergyData {
   electricityConsumption: number;
   compensatedEnergy: number;
-  month: string;
+  month: Date;
+  clientNumber?: string;
 }
 
-export interface FinancialDataDto {
+export interface FinancialData {
   totalWithoutGD: number;
   gdSavings: number;
-  month: string;
+  month: Date;
+  clientNumber?: string;
 }
 
-export interface DashboardSummaryDto {
-  totalElectricityConsumption: number;
-  totalCompensatedEnergy: number;
-  totalWithoutGD: number;
-  totalGDSavings: number;
-  savingsPercentage: number;
+export interface DashboardResponse {
+  energyData: EnergyData[];
+  financialData: FinancialData[];
+}
+
+export interface ChartDataset {
+  date: string;
+  [key: string]: string | number;
 }
 
 export interface EnergyChartData extends ChartDataset {
@@ -31,6 +30,14 @@ export interface EnergyChartData extends ChartDataset {
 export interface FinancialChartData extends ChartDataset {
   totalWithoutGD: number;
   gdSavings: number;
+}
+
+export interface DashboardSummaryDto {
+  totalElectricityConsumption: number;
+  totalCompensatedEnergy: number;
+  totalWithoutGD: number;
+  totalGDSavings: number;
+  savingsPercentage: number;
 }
 
 export interface SummaryData {

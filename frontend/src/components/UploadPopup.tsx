@@ -36,9 +36,14 @@ export function UploadPopup({ isOpen, onClose, isUploading }: UploadPopupProps) 
           )}
           <button
             onClick={onClose}
-            className="mt-6 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-lumi-green-600 hover:bg-lumi-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lumi-green-500"
+            disabled={isUploading}
+            className={`mt-6 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+              isUploading 
+                ? 'bg-lumi-gray-400 cursor-not-allowed' 
+                : 'bg-lumi-green-600 hover:bg-lumi-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lumi-green-500'
+            }`}
           >
-            Fechar
+            {isUploading ? 'Processando...' : 'Fechar'}
           </button>
         </div>
       </div>

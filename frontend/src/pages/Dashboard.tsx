@@ -1,78 +1,71 @@
-import { useQuery } from '@tanstack/react-query';
 import { Zap, Sun, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
 import { DashboardCard } from '../components/DashboardCard';
 import { DashboardChart } from '../components/DashboardChart';
-import { dashboardService } from '../services/api';
-import type {
-  EnergyDataDto,
-  FinancialDataDto,
-  DashboardSummaryDto,
-  EnergyChartData,
-  FinancialChartData,
-  SummaryData,
-} from '../types/dashboard';
 import { useAuth } from '../hooks/useAuth';
+import { useDashboardData } from '../hooks/useDashboardData';
+import type { EnergyChartData, FinancialChartData } from '../types/dashboard';
+import { DateRangeFilter, FilterFormData } from '../components/DateRangeFilter';
+import { startOfMonth, endOfMonth } from 'date-fns';
+import { useState } from 'react';
 
 export function Dashboard() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const [filters, setFilters] = useState<FilterFormData>({});
 
-  console.log('[Dashboard] Estado de autenticação:', isAuthenticated);
-
-  const { data: energyData, isLoading: isLoadingEnergy, error: energyError } = useQuery<EnergyDataDto[], Error, EnergyChartData[]>({
-    queryKey: ['energy-data'],
-    queryFn: async () => {
-      console.log('[Dashboard] Buscando dados de energia...');
-      const data = await dashboardService.getEnergyData();
-      console.log('[Dashboard] Dados de energia recebidos:', data);
-      return data;
-    },
-    retry: 2,
-    select: (data) => data?.map((item) => ({
-      date: item.month,
-      consumption: item.electricityConsumption,
-      compensated: item.compensatedEnergy,
-    })) || [],
-    enabled: isAuthenticated,
+  const { data: dashboardData, isLoading, error, hasValidData } = useDashboardData({
+    startDate: filters.startDate ? startOfMonth(new Date(filters.startDate)) : undefined,
+    endDate: filters.endDate ? endOfMonth(new Date(filters.endDate)) : undefined,
+    clientNumber: filters.clientNumber,
   });
 
-  const { data: financialData, isLoading: isLoadingFinancial, error: financialError } = useQuery<FinancialDataDto[], Error, FinancialChartData[]>({
-    queryKey: ['financial-data'],
-    queryFn: async () => {
-      console.log('[Dashboard] Buscando dados financeiros...');
-      const data = await dashboardService.getFinancialData();
-      console.log('[Dashboard] Dados financeiros recebidos:', data);
-      return data;
-    },
-    retry: 2,
-    select: (data) => data?.map((item) => ({
-      date: item.month,
-      totalWithoutGD: item.totalWithoutGD,
-      gdSavings: item.gdSavings,
-    })) || [],
-    enabled: isAuthenticated,
-  });
+  console.log('[Dashboard] Estado de autenticação:', { isAuthenticated, user });
+  console.log('[Dashboard] Dados válidos:', hasValidData);
+  console.log('[Dashboard] Filtros aplicados:', filters);
 
-  const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useQuery<DashboardSummaryDto, Error, SummaryData>({
-    queryKey: ['dashboard-summary'],
-    queryFn: async () => {
-      console.log('[Dashboard] Buscando resumo...');
-      const data = await dashboardService.getSummary();
-      console.log('[Dashboard] Resumo recebido:', data);
-      return data;
-    },
-    retry: 2,
-    select: (data) => ({
-      totalConsumption: data?.totalElectricityConsumption || 0,
-      totalCompensated: data?.totalCompensatedEnergy || 0,
-      totalValueWithoutGD: data?.totalWithoutGD || 0,
-      totalGdSavings: data?.totalGDSavings || 0,
-      savingsPercentage: data?.savingsPercentage || 0,
-    }),
-    enabled: isAuthenticated,
-  });
+  const energyData: EnergyChartData[] = hasValidData && dashboardData
+    ? dashboardData.energyData.map(item => ({
+        date: typeof item.month === 'string' ? item.month : new Date(item.month).toISOString(),
+        consumption: item.electricityConsumption,
+        compensated: item.compensatedEnergy,
+      }))
+    : [];
 
-  const isLoading = isLoadingEnergy || isLoadingFinancial || isLoadingSummary;
-  const hasError = energyError || financialError || summaryError;
+  const financialData: FinancialChartData[] = hasValidData && dashboardData
+    ? dashboardData.financialData.map(item => ({
+        date: typeof item.month === 'string' ? item.month : new Date(item.month).toISOString(),
+        totalWithoutGD: item.totalWithoutGD,
+        gdSavings: item.gdSavings,
+      }))
+    : [];
+
+  console.log('[Dashboard] Dados transformados:', { energyData, financialData });
+
+  const totalConsumption = hasValidData && dashboardData
+    ? dashboardData.energyData.reduce((acc, curr) => acc + curr.electricityConsumption, 0)
+    : 0;
+  
+  const totalCompensated = hasValidData && dashboardData
+    ? dashboardData.energyData.reduce((acc, curr) => acc + curr.compensatedEnergy, 0)
+    : 0;
+  
+  const totalValueWithoutGD = hasValidData && dashboardData
+    ? dashboardData.financialData.reduce((acc, curr) => acc + curr.totalWithoutGD, 0)
+    : 0;
+  
+  const totalGdSavings = hasValidData && dashboardData
+    ? dashboardData.financialData.reduce((acc, curr) => acc + curr.gdSavings, 0)
+    : 0;
+  
+  console.log('[Dashboard] Totais calculados:', { 
+    totalConsumption, 
+    totalCompensated, 
+    totalValueWithoutGD, 
+    totalGdSavings 
+  });
+  
+  const savingsPercentage = totalValueWithoutGD > 0 
+    ? ((totalGdSavings / totalValueWithoutGD) * 100).toFixed(1)
+    : 0;
 
   if (!isAuthenticated) {
     return (
@@ -123,12 +116,8 @@ export function Dashboard() {
     );
   }
 
-  if (hasError) {
-    console.error('[Dashboard] Erros:', {
-      energy: energyError,
-      financial: financialError,
-      summary: summaryError,
-    });
+  if (error) {
+    console.error('[Dashboard] Erro ao carregar dados:', error);
     return (
       <div className="bg-red-50 rounded-xl p-6 flex items-start">
         <AlertCircle className="h-6 w-6 text-red-600 mt-0.5" />
@@ -150,37 +139,66 @@ export function Dashboard() {
     );
   }
 
+  if (!hasValidData) {
+    console.warn('[Dashboard] Dados do dashboard estão vazios ou incompletos');
+    return (
+      <div className="bg-yellow-50 rounded-xl p-6 flex items-start">
+        <AlertCircle className="h-6 w-6 text-yellow-600 mt-0.5" />
+        <div className="ml-4">
+          <h3 className="text-lg font-medium text-yellow-800">
+            Sem dados disponíveis
+          </h3>
+          <p className="mt-2 text-sm text-yellow-700">
+            Não há dados disponíveis para exibir no dashboard. Por favor, tente novamente mais tarde.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Filtros */}
+      <DateRangeFilter 
+        onFilterChange={setFilters}
+        initialValues={filters}
+        immediateFilter={true}
+      />
+
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <DashboardCard
           title="Consumo Total"
-          value={`${summary?.totalConsumption.toLocaleString('pt-BR')} kWh`}
+          value={totalConsumption}
           icon={<Zap className="h-6 w-6" />}
           description="Energia consumida no período"
-          trend={summary?.savingsPercentage ? {
-            value: summary.savingsPercentage,
+          formatValue={(value) => `${value.toLocaleString('pt-BR')} kWh`}
+          trend={{
+            value: Number(savingsPercentage),
             isPositive: true,
-          } : undefined}
+            label: "economia"
+          }}
         />
         <DashboardCard
           title="Energia Compensada"
-          value={`${summary?.totalCompensated.toLocaleString('pt-BR')} kWh`}
+          value={totalCompensated}
           icon={<Sun className="h-6 w-6" />}
           description="Energia compensada por GD"
+          formatValue={(value) => `${value.toLocaleString('pt-BR')} kWh`}
         />
         <DashboardCard
           title="Valor sem GD"
-          value={`R$ ${summary?.totalValueWithoutGD.toLocaleString('pt-BR')}`}
+          value={totalValueWithoutGD}
           icon={<DollarSign className="h-6 w-6" />}
           description="Valor total sem desconto GD"
+          formatValue={(value) => `R$ ${value.toLocaleString('pt-BR')}`}
         />
         <DashboardCard
           title="Economia GD"
-          value={`R$ ${summary?.totalGdSavings.toLocaleString('pt-BR')}`}
+          value={totalGdSavings}
           icon={<TrendingUp className="h-6 w-6" />}
           description="Economia com geração distribuída"
+          formatValue={(value) => `R$ ${value.toLocaleString('pt-BR')}`}
         />
       </div>
 
@@ -188,7 +206,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <DashboardChart
           title="Consumo vs Compensação de Energia"
-          data={energyData || []}
+          data={energyData}
           lines={[
             {
               key: 'consumption',
@@ -205,7 +223,7 @@ export function Dashboard() {
         />
         <DashboardChart
           title="Valor vs Economia"
-          data={financialData || []}
+          data={financialData}
           lines={[
             {
               key: 'totalWithoutGD',

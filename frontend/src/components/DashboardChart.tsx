@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,6 +12,7 @@ import {
   ChartOptions,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import type { EnergyChartData, FinancialChartData } from '../types/dashboard';
 
 ChartJS.register(
   CategoryScale,
@@ -22,23 +24,20 @@ ChartJS.register(
   Legend
 );
 
-interface ChartDataset {
-  date: string;
-  [key: string]: string | number;
+interface ChartLine {
+  key: string;
+  name: string;
+  color: string;
 }
 
 interface DashboardChartProps {
   title: string;
-  data: ChartDataset[];
-  lines: {
-    key: string;
-    name: string;
-    color: string;
-  }[];
-  yAxisLabel?: string;
+  data: EnergyChartData[] | FinancialChartData[];
+  lines: ChartLine[];
+  yAxisLabel: string;
 }
 
-export function DashboardChart({
+export const DashboardChart = memo(function DashboardChart({
   title,
   data,
   lines,
@@ -85,7 +84,7 @@ export function DashboardChart({
       y: {
         beginAtZero: true,
         title: {
-          display: !!yAxisLabel,
+          display: true,
           text: yAxisLabel,
         },
       },
@@ -93,10 +92,10 @@ export function DashboardChart({
   };
 
   return (
-    <div className="card">
+    <div className="bg-white rounded-xl shadow-sm border border-lumi-gray-100 p-6">
       <div className="h-[300px]">
         <Line data={chartData} options={options} />
       </div>
     </div>
   );
-}
+});

@@ -1,50 +1,93 @@
 import { useQuery } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Download, Upload, Calendar, MoreVertical, RefreshCw } from 'lucide-react';
+import { Download, Upload, RefreshCw } from 'lucide-react';
 import { invoiceService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { UploadPopup } from '../components/UploadPopup';
 import { Invoice } from '../types/invoice';
+import { DateRangeFilter, FilterFormData } from '../components/DateRangeFilter';
+
+// Adiciona o CSS para o efeito de ripple
+const rippleStyle = `
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.7);
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+  }
+  
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+`;
 
 interface PaginatedResponse<T> {
-  data: T[];
+  invoices: T[];
   total: number;
 }
-
-const filterSchema = z.object({
-  clientNumber: z.string().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
-
-type FilterFormData = z.infer<typeof filterSchema>;
 
 export default function Invoices() {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
-  const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [isUploadPopupOpen, setIsUploadPopupOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-
-  const { register, watch } = useForm<FilterFormData>({
-    resolver: zodResolver(filterSchema),
-  });
-
-  const filters = watch();
+  const [filters, setFilters] = useState<FilterFormData>({});
+  const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
 
   const { data: response, isLoading, error } = useQuery<PaginatedResponse<Invoice>>({
     queryKey: ['invoices', filters, page, limit],
     queryFn: async () => {
       console.log('[Invoices] Buscando faturas com filtros:', { ...filters, page, limit });
       try {
-        const data = await invoiceService.getInvoices({ ...filters, page, limit });
-        console.log('[Invoices] Faturas recebidas:', data);
+        // Se tiver clientNumber, busca todas as faturas e filtra no frontend
+        if (filters.clientNumber) {
+          const allData = await invoiceService.getInvoices({
+            page,
+            limit: 1000, // Busca mais itens para filtrar no frontend
+            startDate: filters.startDate ? startOfMonth(new Date(filters.startDate)) : undefined,
+            endDate: filters.endDate ? endOfMonth(new Date(filters.endDate)) : undefined,
+          });
+          
+          // Filtra as faturas pelo número do cliente
+          const filteredInvoices = allData.invoices.filter(invoice => 
+            invoice.clientNumber.includes(filters.clientNumber!)
+          );
+          
+          // Aplica paginação no frontend
+          const startIndex = (page - 1) * limit;
+          const endIndex = startIndex + limit;
+          const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
+          
+          console.log('[Invoices] Faturas filtradas no frontend:', {
+            total: filteredInvoices.length,
+            page,
+            limit,
+            invoices: paginatedInvoices
+          });
+          
+          return {
+            invoices: paginatedInvoices,
+            total: filteredInvoices.length
+          };
+        }
+        
+        // Caso contrário, busca as faturas filtradas do backend
+        const data = await invoiceService.getInvoices({
+          ...filters,
+          page,
+          limit,
+          startDate: filters.startDate ? startOfMonth(new Date(filters.startDate)) : undefined,
+          endDate: filters.endDate ? endOfMonth(new Date(filters.endDate)) : undefined,
+        });
+        console.log('[Invoices] Faturas recebidas do backend:', data);
         return data;
       } catch (error) {
         console.error('[Invoices] Erro ao buscar faturas:', error);
@@ -53,16 +96,28 @@ export default function Invoices() {
     },
   });
 
-  const handleDownload = async (pdfUrl: string) => {
-    window.open(pdfUrl, '_blank');
+  const handleDownload = async (pdfUrl: string, invoiceId: string) => {
+    try {
+      setLoadingActions(prev => ({ ...prev, [`download_${invoiceId}`]: true }));
+      // Simula um pequeno atraso para mostrar o feedback visual
+      await new Promise(resolve => setTimeout(resolve, 500));
+      window.open(pdfUrl, '_blank');
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`download_${invoiceId}`]: false }));
+    }
   };
 
   const handleRetry = async (invoiceId: string) => {
     try {
-      await invoiceService.retryInvoice(invoiceId);
+      setLoadingActions(prev => ({ ...prev, [`retry_${invoiceId}`]: true }));
+      // Simula um pequeno atraso para mostrar o feedback visual
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await invoiceService.reprocessInvoice(invoiceId);
       window.location.reload();
     } catch (error) {
       console.error('Erro ao retentar processamento da fatura:', error);
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`retry_${invoiceId}`]: false }));
     }
   };
 
@@ -83,6 +138,28 @@ export default function Invoices() {
     }
   };
 
+  // Função para criar efeito de ripple
+  const createRipple = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const button = event.currentTarget;
+    const ripple = document.createElement('span');
+    
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = event.clientX - rect.left - size / 2;
+    const y = event.clientY - rect.top - size / 2;
+    
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    ripple.className = 'ripple';
+    
+    button.appendChild(ripple);
+    
+    setTimeout(() => {
+      ripple.remove();
+    }, 600);
+  };
+
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-xl p-6">
@@ -98,63 +175,15 @@ export default function Invoices() {
 
   return (
     <div className="space-y-6">
+      {/* Adiciona o estilo de ripple */}
+      <style>{rippleStyle}</style>
+      
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-sm border border-lumi-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-lumi-gray-900 mb-4">Filtros</h2>
-        <form className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label
-              htmlFor="clientNumber"
-              className="block text-sm font-medium text-lumi-gray-700 mb-1"
-            >
-              Nº do Cliente
-            </label>
-            <input
-              type="text"
-              id="clientNumber"
-              {...register('clientNumber')}
-              className="w-full px-3 py-2 border border-lumi-gray-300 rounded-md shadow-sm placeholder-lumi-gray-400 focus:outline-none focus:ring-2 focus:ring-lumi-green-500 focus:border-lumi-green-500 text-sm"
-              placeholder="Digite o número do cliente"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="startDate"
-              className="block text-sm font-medium text-lumi-gray-700 mb-1"
-            >
-              Data Inicial
-            </label>
-            <div className="relative">
-              <input
-                type="date"
-                id="startDate"
-                {...register('startDate')}
-                className="w-full px-3 py-2 border border-lumi-gray-300 rounded-md shadow-sm placeholder-lumi-gray-400 focus:outline-none focus:ring-2 focus:ring-lumi-green-500 focus:border-lumi-green-500 text-sm"
-                placeholder="Selecione a data inicial"
-              />
-              <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-lumi-gray-400 pointer-events-none" />
-            </div>
-          </div>
-          <div>
-            <label
-              htmlFor="endDate"
-              className="block text-sm font-medium text-lumi-gray-700 mb-1"
-            >
-              Data Final
-            </label>
-            <div className="relative">
-              <input
-                type="date"
-                id="endDate"
-                {...register('endDate')}
-                className="w-full px-3 py-2 border border-lumi-gray-300 rounded-md shadow-sm placeholder-lumi-gray-400 focus:outline-none focus:ring-2 focus:ring-lumi-green-500 focus:border-lumi-green-500 text-sm"
-                placeholder="Selecione a data final"
-              />
-              <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-lumi-gray-400 pointer-events-none" />
-            </div>
-          </div>
-        </form>
-      </div>
+      <DateRangeFilter 
+        onFilterChange={setFilters}
+        initialValues={filters}
+        immediateFilter={true}
+      />
 
       {/* Upload de Fatura - Apenas para ADMIN */}
       {user?.role === 'ADMIN' && (
@@ -213,6 +242,9 @@ export default function Invoices() {
                     <th className="px-6 py-3 text-center text-xs font-medium text-lumi-gray-500 uppercase tracking-wider">
                       Compensada (kWh)
                     </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-lumi-gray-500 uppercase tracking-wider">
+                      Valor (R$)
+                    </th>
                     {user?.role === 'ADMIN' && (
                       <th className="px-6 py-3 text-center text-xs font-medium text-lumi-gray-500 uppercase tracking-wider">
                         Status
@@ -233,10 +265,13 @@ export default function Invoices() {
                         {format(new Date(invoice.referenceMonth), 'MMMM/yyyy', { locale: ptBR })}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-lumi-gray-900 text-center">
-                        {invoice.electricityQuantity.toLocaleString('pt-BR')}
+                        {invoice.electricityQuantity.toLocaleString('pt-BR')} kWh
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-lumi-gray-900 text-center">
-                        {invoice.compensatedEnergyQuantity.toLocaleString('pt-BR')}
+                        {invoice.compensatedEnergyQuantity.toLocaleString('pt-BR')} kWh
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-lumi-gray-900 text-center">
+                        R$ {invoice.electricityValue.toLocaleString('pt-BR')}
                       </td>
                       {user?.role === 'ADMIN' && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
@@ -250,46 +285,48 @@ export default function Invoices() {
                             }`}
                           >
                             {invoice.status === 'COMPLETED'
-                              ? 'Concluído'
+                              ? 'Processado'
                               : invoice.status === 'ERROR'
                               ? 'Erro'
-                              : 'Pendente'}
+                              : 'Processando'}
                           </span>
                         </td>
                       )}
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                        <div className="relative">
-                          <button
-                            onClick={() => setSelectedInvoice(selectedInvoice === invoice.id ? null : invoice.id)}
-                            className="text-lumi-gray-400 hover:text-lumi-gray-600 focus:outline-none"
-                          >
-                            <MoreVertical className="h-5 w-5" />
-                          </button>
-                          {selectedInvoice === invoice.id && (
-                            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                              <div className="py-1" role="menu">
-                                {invoice.pdfUrl && (
-                                  <button
-                                    onClick={() => handleDownload(invoice.pdfUrl!)}
-                                    className="w-full text-left px-4 py-2 text-sm text-lumi-gray-700 hover:bg-lumi-gray-100 flex items-center"
-                                    role="menuitem"
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download
-                                  </button>
-                                )}
-                                {user?.role === 'ADMIN' && (
-                                  <button
-                                    onClick={() => handleRetry(invoice.id!)}
-                                    className="w-full text-left px-4 py-2 text-sm text-lumi-gray-700 hover:bg-lumi-gray-100 flex items-center"
-                                    role="menuitem"
-                                  >
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Retentar
-                                  </button>
-                                )}
-                              </div>
-                            </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        <div className="flex items-center justify-center space-x-2">
+                          {invoice.status === 'COMPLETED' && invoice.pdfUrl && (
+                            <button
+                              onClick={(e) => {
+                                createRipple(e);
+                                handleDownload(invoice.pdfUrl!, invoice.id);
+                              }}
+                              disabled={loadingActions[`download_${invoice.id}`]}
+                              className={`p-2 rounded-full transition-all duration-200 relative overflow-hidden ${
+                                loadingActions[`download_${invoice.id}`] 
+                                  ? 'bg-lumi-blue-100 text-lumi-blue-800 animate-pulse cursor-not-allowed' 
+                                  : 'text-lumi-blue-600 hover:bg-lumi-blue-100 hover:text-lumi-blue-800'
+                              }`}
+                              title={loadingActions[`download_${invoice.id}`] ? "Baixando..." : "Download PDF"}
+                            >
+                              <Download className="h-5 w-5" />
+                            </button>
+                          )}
+                          {user?.role === 'ADMIN' && invoice.status === 'ERROR' && (
+                            <button
+                              onClick={(e) => {
+                                createRipple(e);
+                                handleRetry(invoice.id);
+                              }}
+                              disabled={loadingActions[`retry_${invoice.id}`]}
+                              className={`p-2 rounded-full transition-all duration-200 relative overflow-hidden ${
+                                loadingActions[`retry_${invoice.id}`] 
+                                  ? 'bg-lumi-yellow-100 text-lumi-yellow-800 animate-spin cursor-not-allowed' 
+                                  : 'text-lumi-yellow-600 hover:bg-lumi-yellow-100 hover:text-lumi-yellow-800'
+                              }`}
+                              title={loadingActions[`retry_${invoice.id}`] ? "Reprocessando..." : "Tentar novamente"}
+                            >
+                              <RefreshCw className="h-5 w-5" />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -298,7 +335,7 @@ export default function Invoices() {
                   {!isLoading && (!response?.invoices || response.invoices.length === 0) && (
                     <tr>
                       <td
-                        colSpan={user?.role === 'ADMIN' ? 6 : 5}
+                        colSpan={user?.role === 'ADMIN' ? 7 : 6}
                         className="px-6 py-4 text-center text-sm text-lumi-gray-500"
                       >
                         Nenhuma fatura encontrada

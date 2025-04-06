@@ -1,7 +1,9 @@
+export type InvoiceStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'ERROR';
+
 export interface Invoice {
   id: string;
   clientNumber: string;
-  referenceMonth: string;
+  referenceMonth: Date;
   electricityQuantity: number;
   electricityValue: number;
   sceeQuantity: number;
@@ -10,18 +12,17 @@ export interface Invoice {
   compensatedEnergyValue: number;
   publicLightingValue: number;
   pdfUrl?: string;
-  status: string;
+  status: InvoiceStatus;
   error?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface InvoiceFilters {
   clientNumber?: string;
-  startDate?: string;
-  endDate?: string;
-  page?: number;
-  limit?: number;
+  startDate?: Date;
+  endDate?: Date;
+  month?: Date;
 }
 
 export interface DashboardData {
@@ -46,4 +47,18 @@ export interface DashboardData {
 export interface PaginatedInvoiceResponse {
   invoices: Invoice[];
   total: number;
+}
+
+export interface InvoiceUploadResponse {
+  message: string;
+  jobId: string;
+}
+
+export interface InvoiceStatusResponse {
+  status: InvoiceStatus;
+  error?: string;
+}
+
+export interface InvoicePdfUrlResponse {
+  url: string;
 }

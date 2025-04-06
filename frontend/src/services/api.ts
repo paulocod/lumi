@@ -1,6 +1,16 @@
 import { api } from './axios';
-import type { Invoice, InvoiceFilters } from '../types/invoice';
-import type { EnergyDataDto, FinancialDataDto, DashboardSummaryDto } from '../types/dashboard';
+import type {
+  Invoice,
+  InvoiceFilters,
+  InvoiceUploadResponse,
+  InvoiceStatusResponse,
+  InvoicePdfUrlResponse
+} from '../types/invoice';
+import type {
+  EnergyData,
+  FinancialData,
+  DashboardResponse
+} from '../types/dashboard';
 
 interface PaginatedResponse<T> {
   invoices: T[];
@@ -9,7 +19,6 @@ interface PaginatedResponse<T> {
 
 export const invoiceService = {
   getInvoices: async (filters?: InvoiceFilters & { page?: number; limit?: number }) => {
-    // Converter as datas para o formato ISO
     const params: Record<string, string | number> = {};
 
     if (filters?.clientNumber) {
@@ -17,14 +26,15 @@ export const invoiceService = {
     }
 
     if (filters?.startDate) {
-      const startDate = new Date(filters.startDate);
-      params.startDate = startDate.toISOString();
+      params.startDate = filters.startDate.toISOString();
     }
 
     if (filters?.endDate) {
-      const endDate = new Date(filters.endDate);
-      endDate.setHours(23, 59, 59, 999);
-      params.endDate = endDate.toISOString();
+      params.endDate = filters.endDate.toISOString();
+    }
+
+    if (filters?.month) {
+      params.month = filters.month.toISOString();
     }
 
     if (filters?.page) {
@@ -35,21 +45,14 @@ export const invoiceService = {
       params.limit = filters.limit;
     }
 
-    console.log('[API] Buscando faturas com filtros:', params);
-    try {
-      const { data } = await api.get<PaginatedResponse<Invoice>>('/invoices', { params });
-      console.log('[API] Faturas recebidas:', data);
-      return data;
-    } catch (error) {
-      console.error('[API] Erro ao buscar faturas:', error);
-      throw error;
-    }
+    const { data } = await api.get<PaginatedResponse<Invoice>>('/invoices', { params });
+    return data;
   },
 
-  uploadInvoice: async (file: File) => {
+  uploadInvoice: async (file: File): Promise<InvoiceUploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
-    const { data } = await api.post<Invoice>('/invoices/upload/buffer', formData, {
+    const { data } = await api.post<InvoiceUploadResponse>('/invoices/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -57,25 +60,44 @@ export const invoiceService = {
     return data;
   },
 
-  retryInvoice: async (invoiceId: string) => {
-    const { data } = await api.post<Invoice>(`/invoices/${invoiceId}/retry`);
+  getInvoiceStatus: async (invoiceId: string): Promise<InvoiceStatusResponse> => {
+    const { data } = await api.get<InvoiceStatusResponse>(`/invoices/${invoiceId}/status`);
+    return data;
+  },
+
+  getInvoicePdfUrl: async (invoiceId: string, expiresIn?: number): Promise<InvoicePdfUrlResponse> => {
+    const params = expiresIn ? { expiresIn } : undefined;
+    const { data } = await api.get<InvoicePdfUrlResponse>(`/invoices/${invoiceId}/pdf-url`, { params });
+    return data;
+  },
+
+  reprocessInvoice: async (invoiceId: string): Promise<InvoiceUploadResponse> => {
+    const { data } = await api.post<InvoiceUploadResponse>(`/invoices/${invoiceId}/reprocess`);
     return data;
   },
 };
 
 export const dashboardService = {
-  getEnergyData: async () => {
-    const { data } = await api.get<EnergyDataDto[]>('/dashboard/energy');
-    return data;
-  },
+  getDashboardData: async (filters?: {
+    clientNumber?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<DashboardResponse> => {
+    const params: Record<string, string> = {};
 
-  getFinancialData: async () => {
-    const { data } = await api.get<FinancialDataDto[]>('/dashboard/financial');
-    return data;
-  },
+    if (filters?.clientNumber) {
+      params.clientNumber = filters.clientNumber;
+    }
 
-  getSummary: async () => {
-    const { data } = await api.get<DashboardSummaryDto>('/dashboard/summary');
+    if (filters?.startDate) {
+      params.startDate = filters.startDate.toISOString();
+    }
+
+    if (filters?.endDate) {
+      params.endDate = filters.endDate.toISOString();
+    }
+
+    const { data } = await api.get<DashboardResponse>('/dashboard', { params });
     return data;
   },
 };
@@ -83,6 +105,12 @@ export const dashboardService = {
 export const authService = {
   login: async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password });
+    if (data.access_token) {
+      localStorage.setItem('access_token', data.access_token);
+    }
+    if (data.refresh_token) {
+      localStorage.setItem('refresh_token', data.refresh_token);
+    }
     return data;
   },
 
@@ -101,5 +129,10 @@ export const authService = {
       localStorage.setItem('access_token', data.access_token);
     }
     return data;
+  },
+
+  logout: () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
   },
 };
