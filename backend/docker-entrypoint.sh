@@ -1,0 +1,37 @@
+#!/bin/sh
+set -e
+
+echo "Iniciando script de entrada..."
+
+# Função para verificar se um serviço está pronto
+wait_for_service() {
+    local host=$1
+    local port=$2
+    local service=$3
+
+    echo "Aguardando serviço $service em $host:$port..."
+    while ! nc -z $host $port; do
+        echo "Aguardando $service..."
+        sleep 1
+    done
+    echo "$service está pronto!"
+}
+
+# Instalar netcat para verificação de portas
+apk add --no-cache netcat-openbsd
+
+# Aguardar serviços
+wait_for_service postgres 5432 "PostgreSQL"
+wait_for_service redis 6379 "Redis"
+wait_for_service minio 9000 "MinIO"
+
+echo "Todos os serviços estão prontos!"
+
+echo "Executando migrações do Prisma..."
+npx prisma migrate deploy
+
+echo "Executando seed do banco de dados..."
+npx prisma db seed
+
+echo "Iniciando aplicação..."
+exec "$@"

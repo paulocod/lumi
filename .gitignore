@@ -79,3 +79,5 @@
 **/*.cert
 **/*technical-architecture.md
 paulo-README.md
+**/faturas
+**/API_DOCUMENTATION.md
