@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/await-thenable */
-
 import {
   Process,
   Processor,
@@ -8,85 +6,56 @@ import {
   OnQueueCompleted,
   OnQueueFailed,
   OnQueueWaiting,
-  InjectQueue,
 } from '@nestjs/bull';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { OnEvent } from '@nestjs/event-emitter';
-import { Job, Queue } from 'bull';
-import {
-  InvoiceCreatedEvent,
-  InvoiceProcessedEvent,
-} from '@/shared/events/invoice.events';
+import { Job } from 'bull';
 import { PdfService } from '@/modules/pdf/services/pdf.service';
+import { PdfStorageService } from '@/modules/pdf/services/storage/pdf-storage.service';
 import { ConfigService } from '@nestjs/config';
-import {
-  PdfProcessingError,
-  QueueProcessingError,
-} from '@/shared/errors/application.errors';
-import { PdfSource } from '@/modules/pdf/types/pdf-types';
-import { InvoiceStatus } from '@/shared/enums/invoice-status.enum';
+import { PdfProcessingError } from '@/shared/errors/application.errors';
 import { PrismaService } from 'prisma/prisma.service';
 import { LoggerService } from '@/config/logger';
+import { InvoiceService } from '@/modules/invoice/services/invoice.service';
+import { PdfSource } from '@/modules/pdf/types/pdf-types';
+import { Invoice } from '@/modules/invoice/entities/invoice.entity';
+import { InvoiceStatus } from '@/shared/enums/invoice-status.enum';
 
 interface InvoiceJobData {
   pdf: PdfSource;
-  invoiceId: string;
+  invoiceId?: string;
+  layoutName: string;
 }
 
 @Processor('invoice-processing')
 export class InvoiceQueueProcessor implements OnModuleInit {
   private readonly logger = new Logger(InvoiceQueueProcessor.name);
   private readonly downloadTimeout: number;
+  private readonly incomingBucket: string;
+  private readonly processedBucket: string;
 
   constructor(
     private prisma: PrismaService,
     private pdfService: PdfService,
+    private readonly pdfStorageService: PdfStorageService,
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
     private readonly customLogger: LoggerService,
-    @InjectQueue('invoice-processing')
-    private invoiceQueue: Queue<InvoiceJobData>,
+    private readonly invoiceService: InvoiceService,
   ) {
     this.downloadTimeout =
       this.configService.get<number>('pdf.downloadTimeout') || 30000;
+
+    this.incomingBucket =
+      this.configService.get<string>('INVOICE_INCOMING_BUCKET') ||
+      'incoming-invoices';
+    this.processedBucket =
+      this.configService.get<string>('INVOICE_PROCESSED_BUCKET') ||
+      'processed-invoices';
   }
 
   onModuleInit() {
     this.logger.log('InvoiceQueueProcessor inicializado');
-  }
-
-  private emitEvent<T>(eventName: string, payload: T): void {
-    try {
-      this.eventEmitter.emit(eventName, payload);
-    } catch (error) {
-      this.logger.error(`Erro ao emitir evento ${eventName}:`, error);
-      throw new QueueProcessingError(`Erro ao emitir evento ${eventName}`);
-    }
-  }
-
-  @OnEvent('invoice.created')
-  async handleInvoiceCreated(event: InvoiceCreatedEvent) {
-    this.logger.debug(
-      `Recebido evento invoice.created para fatura: ${event.invoiceId}`,
-    );
-
-    try {
-      const job = await this.invoiceQueue.add('process-invoice', {
-        pdf: event.pdf,
-        invoiceId: event.invoiceId,
-      });
-
-      this.logger.debug(
-        `Job criado para fatura: ${event.invoiceId}, jobId: ${job.id}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Erro ao criar job para fatura: ${event.invoiceId}`,
-        error,
-      );
-      throw new QueueProcessingError('Erro ao criar job de processamento');
-    }
   }
 
   @OnQueueWaiting()
@@ -97,21 +66,21 @@ export class InvoiceQueueProcessor implements OnModuleInit {
   @OnQueueActive()
   onActive(job: Job<InvoiceJobData>) {
     this.logger.debug(
-      `Processando job ${job.id} para fatura: ${job.data.invoiceId}`,
+      `Processando job ${job.id} para fatura: ${job.data.invoiceId || 'nova'}`,
     );
   }
 
   @OnQueueCompleted()
   onCompleted(job: Job<InvoiceJobData>) {
     this.logger.debug(
-      `Job ${job.id} completado com sucesso para fatura: ${job.data.invoiceId}`,
+      `Job ${job.id} completado com sucesso para fatura: ${job.data.invoiceId || 'nova'}`,
     );
   }
 
   @OnQueueFailed()
   onFailed(job: Job<InvoiceJobData>, error: Error) {
     this.logger.error(
-      `Job ${job.id} falhou para fatura: ${job.data.invoiceId}`,
+      `Job ${job.id} falhou para fatura: ${job.data.invoiceId || 'nova'}`,
       error.stack,
     );
   }
@@ -124,139 +93,75 @@ export class InvoiceQueueProcessor implements OnModuleInit {
   @Process('process-invoice')
   async handleInvoiceProcessing(job: Job<InvoiceJobData>) {
     this.customLogger.debug('=== Início do Processamento do Job ===');
-    this.customLogger.debug(
-      `Job data: ${JSON.stringify({
-        jobId: job.id,
-        invoiceId: job.data.invoiceId,
-        pdfType: job.data.pdf.type,
-        pdfDataType: typeof job.data.pdf.data,
-        isBuffer: Buffer.isBuffer(job.data.pdf.data),
-        isArray: Array.isArray(job.data.pdf.data),
-      })}`,
-    );
 
     try {
-      const invoice = await this.prisma.invoice.findUnique({
-        where: { id: job.data.invoiceId },
-      });
-
-      if (!invoice) {
-        this.customLogger.error('Erro: Fatura não encontrada');
-        throw new PdfProcessingError(
-          `Fatura não encontrada: ${job.data.invoiceId}`,
-        );
-      }
-
-      await this.prisma.invoice.update({
-        where: { id: job.data.invoiceId },
-        data: { status: InvoiceStatus.PROCESSING },
-      });
-
       let pdfBuffer: Buffer;
-      if (job.data.pdf.type === 'url') {
-        this.customLogger.debug('Processando PDF via URL');
-        if (typeof job.data.pdf.data !== 'string') {
-          throw new PdfProcessingError('URL do PDF deve ser uma string');
-        }
-        pdfBuffer = await this.downloadPdfFromUrl(job.data.pdf.data);
-      } else {
-        this.customLogger.debug('Processando PDF via Buffer');
-        const bufferData = job.data.pdf.data;
-        this.customLogger.debug(
-          `Buffer data: ${JSON.stringify({
-            type: typeof bufferData,
-            isBuffer: Buffer.isBuffer(bufferData),
-            isArray: Array.isArray(bufferData),
-          })}`,
-        );
+      let processedPdfKey: string | undefined;
 
-        if (Buffer.isBuffer(bufferData)) {
-          this.customLogger.debug('Usando buffer existente');
-          pdfBuffer = bufferData;
-        } else if (Array.isArray(bufferData)) {
-          this.customLogger.debug('Convertendo array para buffer');
-          pdfBuffer = Buffer.from(bufferData);
+      // 1. Se o PDF já estiver em um bucket, mova-o para o bucket de processados
+      if (job.data.pdf.type === 'bucket' && job.data.pdf.key) {
+        processedPdfKey = await this.pdfStorageService.movePdfBetweenBuckets(
+          job.data.pdf.key,
+          this.incomingBucket,
+          this.processedBucket,
+          `${job.data.invoiceId || Date.now()}-${job.data.pdf.key}`,
+        );
+        pdfBuffer = await this.pdfStorageService.downloadPdf(
+          processedPdfKey,
+          this.processedBucket,
+        );
+      } else if (job.data.pdf.type === 'buffer') {
+        if (Buffer.isBuffer(job.data.pdf.data)) {
+          pdfBuffer = job.data.pdf.data;
+        } else if (typeof job.data.pdf.data === 'string') {
+          pdfBuffer = Buffer.from(job.data.pdf.data, 'utf-8');
         } else {
-          this.customLogger.error('Erro: Buffer inválido');
-          throw new PdfProcessingError('O buffer fornecido não é válido');
+          pdfBuffer = Buffer.from(job.data.pdf.data);
         }
+
+        // Upload do PDF para o bucket de processados
+        processedPdfKey = await this.pdfStorageService.uploadPdf(
+          pdfBuffer,
+          `invoice-${job.data.invoiceId || Date.now()}.pdf`,
+          this.processedBucket,
+        );
+      } else {
+        throw new Error('Tipo de PDF não suportado');
       }
 
-      this.customLogger.debug(
-        `Buffer final: ${JSON.stringify({
-          isBuffer: Buffer.isBuffer(pdfBuffer),
-          length: pdfBuffer.length,
-          type: typeof pdfBuffer,
-        })}`,
-      );
+      // 2. Extrair dados do PDF
+      const extractionResult = await this.pdfService.extractData<
+        Partial<Invoice>
+      >(pdfBuffer, job.data.layoutName, {
+        useCache: true,
+        validateResult: true,
+      });
 
-      const invoiceData =
-        await this.pdfService.extractInvoiceFromPdf(pdfBuffer);
-
-      await this.prisma.invoice.update({
-        where: { id: job.data.invoiceId },
-        data: {
-          ...invoiceData,
+      // 3. Atualizar ou criar a fatura com os dados extraídos
+      const invoice = await this.invoiceService.updateInvoice(
+        job.data.invoiceId,
+        {
+          ...extractionResult.data,
+          pdfUrl: processedPdfKey,
           status: InvoiceStatus.COMPLETED,
         },
+      );
+
+      this.emitEvent('invoice.processed', {
+        invoiceId: invoice.id,
+        status: invoice.status,
       });
 
-      const event: InvoiceProcessedEvent = {
-        invoiceId: job.data.invoiceId,
-        success: true,
-      };
-      this.emitEvent('invoice.processed', event);
-
-      this.logger.log(
-        `Job ${job.id} processado com sucesso para fatura: ${job.data.invoiceId}`,
-      );
+      return invoice;
     } catch (error) {
-      this.logger.error(
-        `Erro ao processar job ${job.id} para fatura: ${job.data.invoiceId}`,
-        error instanceof Error ? error.stack : error,
-      );
-
-      await this.prisma.invoice.update({
-        where: { id: job.data.invoiceId },
-        data: {
-          status: InvoiceStatus.FAILED,
-          error: error instanceof Error ? error.message : 'Erro desconhecido',
-        },
-      });
-
-      const event: InvoiceProcessedEvent = {
-        invoiceId: job.data.invoiceId,
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido',
-      };
-      await this.emitEvent('invoice.processed', event);
-
-      throw error;
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+      this.logger.error('Erro no processamento da fatura:', errorMessage);
+      throw new PdfProcessingError(errorMessage);
     }
   }
 
-  private async downloadPdfFromUrl(url: string): Promise<Buffer> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      this.downloadTimeout,
-    );
-
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        throw new PdfProcessingError(
-          `Falha ao baixar o PDF: ${response.statusText}`,
-        );
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      return Buffer.from(arrayBuffer);
-    } finally {
-      clearTimeout(timeoutId);
-    }
+  private emitEvent(eventName: string, data: any) {
+    this.eventEmitter.emit(eventName, data);
   }
 }

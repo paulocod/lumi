@@ -5,6 +5,7 @@ import { PdfModule } from '@/modules/pdf/pdf.module';
 import { PrismaModule } from 'prisma/prisma.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from '@/config/logger';
+import { InvoiceModule } from '@/modules/invoice/invoice.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { LoggerModule } from '@/config/logger';
     PrismaModule,
     PdfModule,
     LoggerModule,
+    InvoiceModule,
   ],
   providers: [InvoiceQueueProcessor],
 })

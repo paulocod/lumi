@@ -8,7 +8,6 @@ import { RedisCacheModule } from './infrastructure/cache/cache.module';
 import { PdfModule } from './modules/pdf/pdf.module';
 import { InvoiceQueueModule } from './queue/queue.module';
 import { BullConfigModule } from './queue/infrastructure/bull.module';
-import { InvoiceSharedModule } from './shared/invoice-shared.module';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { appConfig, pdfConfig, queueConfig } from './config/app.config';
 import { PrismaModule } from 'prisma/prisma.module';
@@ -51,7 +50,6 @@ import { AuthModule } from './modules/auth/auth.module';
     HealthModule,
     PdfModule,
     DashboardModule,
-    InvoiceSharedModule,
     InvoiceModule,
     InvoiceQueueModule,
     AuthModule,

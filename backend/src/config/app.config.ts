@@ -77,3 +77,12 @@ export const tracingConfig = registerAs('tracing', () => ({
       process.env.JAEGER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
   },
 }));
+
+export const minioConfig = registerAs('minio', () => ({
+  endpoint: process.env.MINIO_ENDPOINT || 'localhost',
+  port: parseInt(process.env.MINIO_PORT || '9000', 10),
+  useSSL: process.env.MINIO_USE_SSL === 'true',
+  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+  defaultBucket: process.env.MINIO_BUCKET_NAME || 'lumi-pdfs',
+}));
