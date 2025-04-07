@@ -73,23 +73,11 @@ export const invoiceService = {
     return data;
   },
 
-  getInvoicePdfUrl: async (
-    invoiceId: string,
-    expiresIn?: number
-  ): Promise<InvoicePdfUrlResponse> => {
-    const params = expiresIn ? { expiresIn } : undefined;
-    const { data } = await api.get<InvoicePdfUrlResponse>(
-      `/invoices/${invoiceId}/pdf-url`,
-      { params }
-    );
-    return data;
-  },
-
   getInvoiceDirectPdfUrl: async (
     invoiceId: string
   ): Promise<InvoicePdfUrlResponse> => {
     const { data } = await api.get<InvoicePdfUrlResponse>(
-      `/invoices/${invoiceId}/pdf-direct-url`
+      `/invoices/${invoiceId}/pdf`
     );
     return data;
   },
