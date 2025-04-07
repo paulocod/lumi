@@ -102,15 +102,15 @@ npm install
 3. Construa e inicie os containers:
 ```bash
 # Construir as imagens
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # Iniciar os containers
-docker-compose up -d
+docker compose up -d
 ```
 
 4. Aguarde todos os serviços iniciarem (você pode acompanhar os logs):
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 O processo de inicialização irá:
@@ -120,77 +120,68 @@ O processo de inicialização irá:
 - Popular o banco com dados iniciais
 - Iniciar a aplicação
 
-### Possíveis Problemas e Soluções
+### Inciando o Frontend
 
-Se encontrar erros durante a inicialização, siga estes passos:
-
-1. Pare todos os containers e remova os volumes:
+1. entre na pasta frontend.
 ```bash
-docker-compose down -v
+cd ..
+cd frontend
 ```
 
-2. Reconstrua as imagens sem cache:
+2. baixe os pacotes:
 ```bash
-docker-compose build --no-cache
+npm install
 ```
 
-3. Inicie novamente:
+3. Inicie:
 ```bash
-docker-compose up -d
+npm run dev
 ```
-
-4. Verifique os logs para identificar possíveis erros:
-```bash
-# Ver todos os logs
-docker-compose logs -f
-
-# Ver logs de um serviço específico
-docker-compose logs -f backend
-```
-
 ### Acessando os Serviços
 
 Após a inicialização bem-sucedida, você pode acessar:
 
+- **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:3001
   - Documentação (Swagger): http://localhost:3001/api
   - Credenciais padrão:
+  Utilize para uma experiencia melhorada.
     - Email: `admin@example.com`
     - Senha: `admin@123`
 
-- **MinIO Console**: http://localhost:9001
+- **MinIO Console para gerenciar buckets**: http://localhost:9001
   - Usuário: `lumi`
   - Senha: `lumi@1234`
 
-- **Jaeger UI**: http://localhost:16686
+- **Jaeger UI Tracing**: http://localhost:16686 (coloque no serviço **lumi-backend**)
 
 ### Comandos Úteis
 
 1. Verificar status dos containers:
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 2. Reiniciar um serviço específico:
 ```bash
-docker-compose restart [serviço]
-# Exemplo: docker-compose restart backend
+docker compose restart [serviço]
+# Exemplo: docker compose restart backend
 ```
 
 3. Ver logs em tempo real:
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 4. Acessar o shell de um container:
 ```bash
-docker-compose exec [serviço] sh
-# Exemplo: docker-compose exec backend sh
+docker compose exec [serviço] sh
+# Exemplo: docker compose exec backend sh
 ```
 
 5. Parar todos os serviços:
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Volumes e Persistência
@@ -202,5 +193,5 @@ Os dados são persistidos nos seguintes volumes Docker:
 
 Para remover todos os dados e começar do zero:
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
