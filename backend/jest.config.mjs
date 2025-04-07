@@ -11,5 +11,5 @@ export default {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
-  setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
+  setupFilesAfterEnv: ['../test/setup.ts'],
 };
