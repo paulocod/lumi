@@ -261,7 +261,18 @@ export class InvoiceController {
         throw new BadRequestException('Fatura não possui PDF associado');
       }
 
-      return { url: invoice.pdfUrl };
+      let objectName = invoice.pdfUrl;
+      if (invoice.pdfUrl.includes('/')) {
+        const parts = invoice.pdfUrl.split('/');
+        objectName = parts[parts.length - 1];
+
+        if (objectName.includes('?')) {
+          objectName = objectName.split('?')[0];
+        }
+      }
+
+      const url = await this.pdfStorageService.getDirectPdfUrl(objectName);
+      return { url };
     } catch (error) {
       this.logger.error(`Erro ao baixar PDF da fatura ${id}`, error);
       throw new BadRequestException(
