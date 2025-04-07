@@ -4,17 +4,19 @@ import { Invoice } from '@/modules/invoice/entities/invoice.entity';
 
 export function setupSwagger(app: INestApplication) {
   const config = new DocumentBuilder()
-    .setTitle('API de Faturas')
-    .setDescription('API para processamento de faturas de energia')
+    .setTitle('Lumi API')
+    .setDescription('API para processamento de faturas de energia elétrica')
     .setVersion('1.0')
-    .addTag('invoices')
+    .addTag('auth', 'Autenticação e autorização')
+    .addTag('invoices', 'Gerenciamento de faturas')
+    .addTag('dashboard', 'Visualização de dados')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'JWT',
-        description: 'Enter JWT token',
+        description: 'Token JWT para autenticação',
         in: 'header',
       },
       'access-token',
@@ -30,6 +32,10 @@ export function setupSwagger(app: INestApplication) {
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',
       persistAuthorization: true,
+      docExpansion: 'none',
+      filter: true,
+      showExtensions: true,
+      showCommonExtensions: true,
     },
   });
 }

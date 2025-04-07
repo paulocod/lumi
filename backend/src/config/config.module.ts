@@ -8,6 +8,7 @@ import {
   pdfConfig,
   queueConfig,
   tracingConfig,
+  minioConfig,
 } from './app.config';
 
 @Module({
@@ -22,6 +23,7 @@ import {
         pdfConfig,
         queueConfig,
         tracingConfig,
+        minioConfig,
       ],
     }),
   ],

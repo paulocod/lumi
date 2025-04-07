@@ -1,22 +1,13 @@
-import { Test } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { AppModule } from '@/app.module';
+import { Logger } from '@nestjs/common';
 
-let app: INestApplication;
-let prisma: PrismaService;
+Logger.overrideLogger(['error', 'warn']);
 
-beforeAll(async () => {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+beforeAll(() => {});
 
-  app = moduleRef.createNestApplication();
-  prisma = app.get<PrismaService>(PrismaService);
-  await app.init();
-});
+afterAll(() => {});
 
-afterAll(async () => {
-  await prisma.$disconnect();
-  await app.close();
+beforeEach(() => {});
+
+afterEach(() => {
+  jest.clearAllMocks();
 });

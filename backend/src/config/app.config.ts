@@ -3,7 +3,6 @@ import { registerAs } from '@nestjs/config';
 export const appConfig = registerAs('app', () => ({
   port: parseInt(process.env.PORT || '3001', 10),
   environment: process.env.NODE_ENV || 'development',
-  apiPrefix: process.env.API_PREFIX || 'api',
   cors: {
     enabled: process.env.CORS_ENABLED === 'true',
     origin: process.env.CORS_ORIGIN || '*',
@@ -24,7 +23,6 @@ export const databaseConfig = registerAs('database', () => ({
 
 export const redisConfig = registerAs('redis', () => ({
   url: process.env.REDIS_URL || 'redis://localhost:6379',
-  host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   password: process.env.REDIS_PASSWORD,
 }));
@@ -37,16 +35,15 @@ export const cacheConfig = registerAs('cache', () => ({
 
 export const pdfConfig = registerAs('pdf', () => ({
   downloadTimeout: parseInt(process.env.PDF_DOWNLOAD_TIMEOUT || '30000', 10),
-  maxSize: parseInt(process.env.PDF_MAX_SIZE || '5242880', 10), // 5MB
+  maxSize: parseInt(process.env.PDF_MAX_SIZE || '5242880', 10),
   allowedTypes: ['application/pdf'],
   cache: {
-    ttl: parseInt(process.env.PDF_CACHE_TTL || '3600', 10), // 1 hour
+    ttl: parseInt(process.env.PDF_CACHE_TTL || '3600', 10),
   },
 }));
 
 export const queueConfig = registerAs('queue', () => ({
   redis: {
-    host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
   },
   defaultJobOptions: {
@@ -84,5 +81,7 @@ export const minioConfig = registerAs('minio', () => ({
   useSSL: process.env.MINIO_USE_SSL === 'true',
   accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
   secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
-  defaultBucket: process.env.MINIO_BUCKET_NAME || 'lumi-pdfs',
+  processBucket: process.env.MINIO_PROCESS_BUCKET || 'lumi-process-invoices',
+  processedBucket:
+    process.env.MINIO_PROCESSED_BUCKET || 'lumi-processed-invoices',
 }));
