@@ -117,6 +117,17 @@ cp .env.example .env
 - `JWT_SECRET`: Chave secreta para JWT
 - `JWT_EXPIRATION`: Tempo de expiração do JWT
 
+4. Instale as dependências e configure o banco de dados:
+```bash
+npm install
+npm run db:setup
+```
+
+Este comando irá:
+- Gerar o cliente Prisma
+- Sincronizar o banco de dados com o schema
+- Popular o banco com dados iniciais
+
 ### 3. Configuração do Frontend
 
 1. Entre na pasta do frontend:
@@ -136,30 +147,13 @@ npm install
 1. Na raiz do projeto, execute:
 ```bash
 cd backend
+npm install
 docker-compose up -d
 ```
 
 2. Inicie o frontend:
 ```bash
 cd frontend
-npm run dev
-```
-
-### Executando Localmente
-
-#### Backend
-```bash
-cd backend
-npm install
-npm run prisma:generate
-npm run prisma:migrate
-npm run start:dev
-```
-
-#### Frontend
-```bash
-cd frontend
-npm install
 npm run dev
 ```
 

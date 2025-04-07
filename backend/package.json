@@ -27,7 +27,8 @@
     "db:reset": "npm run prisma:migrate:reset && npm run prisma:seed",
     "db:seed:manual": "./scripts/seed.sh",
     "clean": "rm -rf dist node_modules",
-    "clean:install": "npm run clean && npm install"
+    "clean:install": "npm run clean && npm install",
+    "db:setup": "prisma generate && prisma db push && npm run db:seed"
   },
   "prisma": {
     "seed": "ts-node ./prisma/seed.ts"
