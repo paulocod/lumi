@@ -1,14 +1,8 @@
-import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import {
-  Home,
-  FileText,
-  LogOut,
-  Menu,
-  X
-} from 'lucide-react';
-import { useState } from 'react';
+import { ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Home, FileText, LogOut, Menu, X } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "../hooks/useAuthHook";
 
 interface LayoutProps {
   children: ReactNode;
@@ -20,8 +14,8 @@ export function Layout({ children }: LayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Faturas', href: '/invoices', icon: FileText },
+    { name: "Dashboard", href: "/", icon: Home },
+    { name: "Faturas", href: "/invoices", icon: FileText },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -30,7 +24,7 @@ export function Layout({ children }: LayoutProps) {
     try {
       await logout();
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
+      console.error("Erro ao fazer logout:", error);
     }
   };
 
@@ -57,7 +51,9 @@ export function Layout({ children }: LayoutProps) {
               </div>
             </div>
             <div className="flex items-center gap-x-4">
-              <span className="text-sm font-medium text-lumi-gray-700">{user?.name}</span>
+              <span className="text-sm font-medium text-lumi-gray-700">
+                {user?.name}
+              </span>
               <button
                 onClick={handleLogout}
                 className="text-lumi-gray-700 hover:text-lumi-gray-900 hover:bg-lumi-green-50 p-2 rounded-full transition-colors duration-200"
@@ -73,7 +69,7 @@ export function Layout({ children }: LayoutProps) {
       {/* Sidebar */}
       <div
         className={`fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-lumi-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="h-16 flex items-center px-6 border-b border-lumi-gray-200">
@@ -89,15 +85,15 @@ export function Layout({ children }: LayoutProps) {
                   to={item.href}
                   className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
                     isActive(item.href)
-                      ? 'bg-lumi-green-50 text-lumi-green-800'
-                      : 'text-lumi-gray-700 hover:bg-lumi-gray-50 hover:text-lumi-gray-900'
+                      ? "bg-lumi-green-50 text-lumi-green-800"
+                      : "text-lumi-gray-700 hover:bg-lumi-gray-50 hover:text-lumi-gray-900"
                   }`}
                 >
                   <Icon
                     className={`mr-3 h-5 w-5 ${
                       isActive(item.href)
-                        ? 'text-lumi-green-800'
-                        : 'text-lumi-gray-400 group-hover:text-lumi-gray-500'
+                        ? "text-lumi-green-800"
+                        : "text-lumi-gray-400 group-hover:text-lumi-gray-500"
                     }`}
                     aria-hidden="true"
                   />
@@ -111,7 +107,10 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Mobile Sidebar */}
       {isSidebarOpen && (
-        <div className="fixed inset-0 z-20 bg-lumi-gray-800 bg-opacity-50 lg:hidden" onClick={() => setIsSidebarOpen(false)}>
+        <div
+          className="fixed inset-0 z-20 bg-lumi-gray-800 bg-opacity-50 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        >
           <div className="fixed inset-y-0 left-0 z-30 w-64 bg-white transform transition-transform duration-200 ease-in-out translate-x-0 pt-16">
             <nav className="flex flex-col h-full overflow-y-auto px-3 py-4">
               <div className="space-y-1">
@@ -123,16 +122,16 @@ export function Layout({ children }: LayoutProps) {
                       to={item.href}
                       className={`group flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
                         isActive(item.href)
-                          ? 'bg-lumi-green-50 text-lumi-green-700'
-                          : 'text-lumi-gray-700 hover:bg-lumi-green-50 hover:text-lumi-green-700'
+                          ? "bg-lumi-green-50 text-lumi-green-700"
+                          : "text-lumi-gray-700 hover:bg-lumi-green-50 hover:text-lumi-green-700"
                       }`}
                       onClick={() => setIsSidebarOpen(false)}
                     >
                       <Icon
                         className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors duration-200 ${
                           isActive(item.href)
-                            ? 'text-lumi-green-700'
-                            : 'text-lumi-gray-400 group-hover:text-lumi-green-700'
+                            ? "text-lumi-green-700"
+                            : "text-lumi-gray-400 group-hover:text-lumi-green-700"
                         }`}
                         aria-hidden="true"
                       />
@@ -148,9 +147,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Main content */}
       <main className="lg:pl-64 pt-16">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {children}
-        </div>
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</div>
       </main>
     </div>
   );

@@ -5,8 +5,10 @@ import {
   IsDateString,
   IsInt,
   Min,
+  IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { InvoiceStatus } from '@/shared/enums/invoice-status.enum';
 
 export class InvoiceFilterDto {
   @ApiProperty({
@@ -17,6 +19,15 @@ export class InvoiceFilterDto {
   @IsOptional()
   @IsString()
   clientNumber?: string;
+
+  @ApiProperty({
+    description: 'Status da fatura',
+    enum: InvoiceStatus,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(InvoiceStatus)
+  status?: InvoiceStatus;
 
   @ApiProperty({
     description: 'Data inicial para filtro de período',

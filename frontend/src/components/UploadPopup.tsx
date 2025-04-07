@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from "lucide-react";
 
 interface UploadPopupProps {
   isOpen: boolean;
@@ -6,7 +6,11 @@ interface UploadPopupProps {
   isUploading: boolean;
 }
 
-export function UploadPopup({ isOpen, onClose, isUploading }: UploadPopupProps) {
+export function UploadPopup({
+  isOpen,
+  onClose,
+  isUploading,
+}: UploadPopupProps) {
   if (!isOpen) return null;
 
   return (
@@ -20,7 +24,8 @@ export function UploadPopup({ isOpen, onClose, isUploading }: UploadPopupProps) 
                 Processando arquivo
               </h3>
               <p className="text-sm text-lumi-gray-500">
-                O arquivo está sendo processado e em breve aparecerá na lista de faturas.
+                O arquivo está sendo processado e em breve aparecerá na lista de
+                faturas.
               </p>
             </>
           ) : (
@@ -38,12 +43,12 @@ export function UploadPopup({ isOpen, onClose, isUploading }: UploadPopupProps) 
             onClick={onClose}
             disabled={isUploading}
             className={`mt-6 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-              isUploading 
-                ? 'bg-lumi-gray-400 cursor-not-allowed' 
-                : 'bg-lumi-green-600 hover:bg-lumi-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lumi-green-500'
+              isUploading
+                ? "bg-lumi-gray-400 cursor-not-allowed"
+                : "bg-lumi-green-600 hover:bg-lumi-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lumi-green-500"
             }`}
           >
-            {isUploading ? 'Processando...' : 'Fechar'}
+            {isUploading ? "Processando..." : "Fechar"}
           </button>
         </div>
       </div>

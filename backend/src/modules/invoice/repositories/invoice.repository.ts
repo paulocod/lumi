@@ -61,11 +61,16 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     month?: Date;
     page?: number;
     limit?: number;
+    status?: InvoiceStatus;
   }): Promise<{ invoices: Invoice[]; total: number }> {
     const where: Prisma.InvoiceWhereInput = {};
 
     if (filters?.clientNumber) {
       where.clientNumber = filters.clientNumber;
+    }
+
+    if (filters?.status) {
+      where.status = filters.status;
     }
 
     if (filters?.month) {
@@ -80,7 +85,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     const [invoices, total] = await Promise.all([
       this.prisma.invoice.findMany({
         where,
-        orderBy: { referenceMonth: 'desc' },
+        orderBy: { referenceMonth: 'asc' },
         skip: filters?.page
           ? (filters.page - 1) * (filters.limit || 10)
           : undefined,

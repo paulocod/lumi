@@ -10,6 +10,11 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { CreateInvoiceDto } from '../dtos/create-invoice.dto';
 import { PdfLayoutService } from '../../pdf/services/layout/pdf-layout.service';
+import { PrismaService } from 'prisma/prisma.service';
+import { LoggerService } from '@/config/logger';
+import { PdfStorageService } from '@/modules/pdf/services/storage/pdf-storage.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class InvoiceService {
@@ -24,11 +29,16 @@ export class InvoiceService {
     private readonly eventEmitter: EventEmitter2,
     @InjectQueue('invoice-processing')
     private readonly invoiceQueue: Queue,
+    private readonly prisma: PrismaService,
+    private readonly loggerService: LoggerService,
+    private readonly pdfStorageService: PdfStorageService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async processInvoicePdf(
     pdf: PdfSource,
     invoiceId?: string,
+    existingObjectName?: string,
   ): Promise<{ jobId: string }> {
     try {
       if (pdf.type === 'buffer' && !this.validatePdfBuffer(pdf.data)) {
@@ -39,17 +49,44 @@ export class InvoiceService {
         throw new Error(`Layout ${this.LAYOUT_NAME} não encontrado`);
       }
 
+      let objectName: string;
+
+      if (existingObjectName) {
+        objectName = existingObjectName;
+
+        await this.pdfStorageService.updatePdfInProcessBucket(
+          existingObjectName,
+          Buffer.from(pdf.data as number[]),
+        );
+
+        this.logger.debug(
+          `PDF ${existingObjectName} atualizado no bucket de processamento`,
+        );
+      } else {
+        objectName = await this.pdfStorageService.uploadPdfForProcessing(
+          Buffer.from(pdf.data as number[]),
+          `invoice-${invoiceId || 'new'}.pdf`,
+        );
+      }
+
       const jobId = invoiceId ? `update-${invoiceId}` : `new-${Date.now()}`;
 
       const job = await this.invoiceQueue.add(
         'process-invoice',
         {
-          pdf,
+          objectName,
           invoiceId,
           layoutName: this.LAYOUT_NAME,
         },
         {
           jobId,
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+          removeOnComplete: true,
+          removeOnFail: false,
         },
       );
 
@@ -69,6 +106,15 @@ export class InvoiceService {
     const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
     const header = buffer.toString('ascii', 0, 5);
     return header === '%PDF-';
+  }
+
+  private async invalidateDashboardCache(): Promise<void> {
+    try {
+      await this.cacheManager.del('dashboard:all');
+      this.logger.debug('Cache do dashboard invalidado com sucesso');
+    } catch (error) {
+      this.logger.error('Erro ao invalidar cache do dashboard', error);
+    }
   }
 
   async extractInvoiceData(
@@ -138,6 +184,8 @@ export class InvoiceService {
           pdf,
         });
       }
+
+      await this.invalidateDashboardCache();
 
       this.logger.debug(`Fatura processada com sucesso: ${invoice.id}`);
       this.eventEmitter.emit('invoice.processed', {
@@ -210,10 +258,7 @@ export class InvoiceService {
     return this.invoiceRepository.findById(id);
   }
 
-  async getInvoicePdfUrl(
-    invoiceId: string,
-    expiresInSeconds?: number,
-  ): Promise<string> {
+  async downloadInvoicePdf(invoiceId: string): Promise<Buffer> {
     try {
       const invoice = await this.getInvoiceById(invoiceId);
       if (!invoice) {
@@ -224,39 +269,78 @@ export class InvoiceService {
         throw new Error('Fatura não possui PDF associado');
       }
 
-      this.logger.debug(
-        `Gerando URL assinada para o PDF da fatura ${invoiceId}`,
-      );
-      return await this.pdfService.getSignedUrl(
-        invoice.pdfUrl,
-        expiresInSeconds,
+      this.logger.debug(`Baixando PDF da fatura ${invoiceId}`);
+
+      let objectName = invoice.pdfUrl;
+      if (invoice.pdfUrl.includes('/')) {
+        const parts = invoice.pdfUrl.split('/');
+        objectName = parts[parts.length - 1];
+
+        if (objectName.includes('?')) {
+          objectName = objectName.split('?')[0];
+        }
+      }
+
+      return await this.pdfStorageService.downloadPdf(
+        objectName,
+        'lumi-processed-invoices',
       );
     } catch (error) {
       this.logger.error(
-        'Erro ao gerar URL assinada para o PDF da fatura',
-        error,
+        'Erro ao baixar PDF da fatura',
+        error instanceof Error ? error.message : String(error),
       );
       throw error;
     }
   }
 
-  async updateInvoice(
-    invoiceId: string | undefined,
-    data: Partial<Invoice>,
-  ): Promise<Invoice> {
+  async updateInvoicePdfUrl(invoiceId: string, pdfUrl: string) {
     try {
-      if (invoiceId) {
-        const existingInvoice =
-          await this.invoiceRepository.findById(invoiceId);
-        if (!existingInvoice) {
-          throw new Error(`Fatura não encontrada: ${invoiceId}`);
+      let objectName = pdfUrl;
+      if (pdfUrl.includes('/')) {
+        const parts = pdfUrl.split('/');
+        objectName = parts[parts.length - 1];
+
+        if (objectName.includes('?')) {
+          objectName = objectName.split('?')[0];
         }
-        return await this.invoiceRepository.update(invoiceId, data);
-      } else {
-        return await this.invoiceRepository.create(data as Invoice);
       }
+
+      const invoice = await this.prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          pdfUrl: objectName,
+          status: 'COMPLETED',
+        },
+      });
+
+      this.logger.debug(
+        `URL do PDF atualizada com sucesso para a fatura ${invoiceId}`,
+      );
+      return invoice;
     } catch (error) {
-      this.logger.error('Erro ao atualizar/criar fatura:', error);
+      this.logger.error(
+        'Erro ao atualizar URL do PDF da fatura',
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
+    }
+  }
+
+  async updateInvoice(invoiceId: string, data: Partial<Invoice>) {
+    try {
+      const invoice = await this.prisma.invoice.update({
+        where: { id: invoiceId },
+        data,
+      });
+
+      this.logger.debug(`Fatura ${invoiceId} atualizada com sucesso`);
+      return invoice;
+    } catch (error) {
+      this.logger.error(
+        'Erro ao atualizar fatura',
+        error instanceof Error ? error.message : String(error),
+      );
       throw error;
     }
   }

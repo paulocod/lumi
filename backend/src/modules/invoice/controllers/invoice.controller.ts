@@ -11,32 +11,61 @@ import {
   FileTypeValidator,
   BadRequestException,
   Logger,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InvoiceService } from '../services/invoice.service';
 import { InvoiceStatus } from '@/shared/enums/invoice-status.enum';
 import { PdfSource } from '@/modules/pdf/types/pdf-types';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { InvoiceResponseDto } from '../dtos/invoice-response.dto';
 import { InvoiceStatusResponseDto } from '../dtos/invoice-status-response.dto';
 import { InvoiceListResponseDto } from '../dtos/invoice-list-response.dto';
-import { InvoicePdfUrlResponseDto } from '../dtos/invoice-pdf-url-response.dto';
 import { InvoiceFilterDto } from '../dtos/invoice-filter.dto';
+import { UnprocessedPdfListDto } from '@/modules/pdf/dtos/unprocessed-pdf.dto';
+import { Response } from 'express';
+import { PdfStorageService } from '@/modules/pdf/services/storage/pdf-storage.service';
 
-@ApiTags('Invoices')
+@ApiTags('invoices')
 @Controller('invoices')
 export class InvoiceController {
   private readonly logger = new Logger(InvoiceController.name);
 
-  constructor(private readonly invoiceService: InvoiceService) {}
+  constructor(
+    private readonly invoiceService: InvoiceService,
+    private readonly pdfStorageService: PdfStorageService,
+  ) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload de PDF de fatura' })
+  @ApiOperation({ summary: 'Upload de fatura em PDF' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Arquivo PDF da fatura (máx. 5MB)',
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: 201,
-    description: 'PDF enviado para processamento com sucesso',
-    type: () => InvoiceResponseDto,
+    description: 'Fatura enviada para processamento',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Arquivo inválido ou erro no processamento',
   })
   async uploadInvoice(
     @UploadedFile(
@@ -73,57 +102,109 @@ export class InvoiceController {
     }
   }
 
-  @Post(':id/reprocess')
-  @ApiOperation({ summary: 'Reprocessa uma fatura existente' })
+  @Get('unprocessed')
+  @ApiOperation({ summary: 'Listar PDFs não processados' })
   @ApiResponse({
     status: 200,
-    description: 'Fatura enviada para reprocessamento com sucesso',
+    description: 'Lista de PDFs não processados',
+    type: UnprocessedPdfListDto,
+  })
+  async getUnprocessedPdfs(): Promise<UnprocessedPdfListDto> {
+    try {
+      this.logger.debug('Buscando lista de PDFs não processados');
+
+      const pdfs = await this.pdfStorageService.listUnprocessedPdfs();
+
+      return {
+        pdfs,
+        total: pdfs.length,
+      };
+    } catch (error) {
+      this.logger.error('Erro ao buscar lista de PDFs não processados', error);
+      throw new BadRequestException(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao buscar PDFs não processados',
+      );
+    }
+  }
+
+  @Post('reprocess/:objectName')
+  @ApiOperation({ summary: 'Reprocessa um PDF não processado' })
+  @ApiResponse({
+    status: 200,
+    description: 'PDF enviado para reprocessamento com sucesso',
     type: () => InvoiceResponseDto,
   })
-  async reprocessInvoice(@Param('id') id: string): Promise<InvoiceResponseDto> {
+  async reprocessUnprocessedPdf(
+    @Param('objectName') objectName: string,
+  ): Promise<InvoiceResponseDto> {
     try {
-      this.logger.debug(`Iniciando reprocessamento da fatura ${id}`);
+      this.logger.debug(`Iniciando reprocessamento do PDF ${objectName}`);
 
-      const invoice = await this.invoiceService.getInvoiceById(id);
-      if (!invoice) {
-        throw new BadRequestException('Fatura não encontrada');
-      }
-
-      if (!invoice.pdfUrl) {
-        throw new BadRequestException(
-          'Fatura não possui PDF associado para reprocessamento',
-        );
-      }
+      const pdfBuffer =
+        await this.pdfStorageService.getPdfFromProcessBucket(objectName);
 
       const pdf: PdfSource = {
-        type: 'url',
-        data: invoice.pdfUrl,
+        type: 'buffer',
+        data: pdfBuffer,
       };
 
-      const { jobId } = await this.invoiceService.processInvoicePdf(pdf, id);
+      const { jobId } = await this.invoiceService.processInvoicePdf(
+        pdf,
+        undefined,
+        objectName,
+      );
 
       this.logger.debug(
-        `Fatura ${id} enviada para reprocessamento. JobId: ${jobId}`,
+        `PDF ${objectName} enviado para reprocessamento. JobId: ${jobId}`,
       );
 
       return {
-        message: 'Fatura enviada para reprocessamento com sucesso',
+        message: 'PDF enviado para reprocessamento com sucesso',
         jobId,
       };
     } catch (error) {
-      this.logger.error(`Erro ao reprocessar fatura ${id}`, error);
+      this.logger.error(`Erro ao reprocessar PDF ${objectName}`, error);
       throw new BadRequestException(
-        error instanceof Error ? error.message : 'Erro ao reprocessar fatura',
+        error instanceof Error ? error.message : 'Erro ao reprocessar PDF',
+      );
+    }
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Listar faturas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de faturas',
+    type: InvoiceListResponseDto,
+  })
+  async getInvoices(
+    @Query() filter: InvoiceFilterDto,
+  ): Promise<InvoiceListResponseDto> {
+    try {
+      this.logger.debug('Buscando lista de faturas com filtros', filter);
+
+      const { invoices, total } = await this.invoiceService.findAll(filter);
+
+      return {
+        invoices,
+        total,
+      };
+    } catch (error) {
+      this.logger.error('Erro ao buscar lista de faturas', error);
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Erro ao buscar faturas',
       );
     }
   }
 
   @Get(':id/status')
-  @ApiOperation({ summary: 'Obtém o status de processamento de uma fatura' })
+  @ApiOperation({ summary: 'Status do processamento da fatura' })
   @ApiResponse({
     status: 200,
-    description: 'Status da fatura obtido com sucesso',
-    type: () => InvoiceStatusResponseDto,
+    description: 'Status atual da fatura',
+    type: InvoiceStatusResponseDto,
   })
   async getInvoiceStatus(
     @Param('id') id: string,
@@ -150,56 +231,48 @@ export class InvoiceController {
     }
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Lista faturas com filtros opcionais' })
+  @Get(':id/pdf')
+  @ApiOperation({ summary: 'Download do PDF da fatura' })
   @ApiResponse({
     status: 200,
-    description: 'Lista de faturas obtida com sucesso',
-    type: () => InvoiceListResponseDto,
+    description: 'PDF da fatura',
+    content: {
+      'application/pdf': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
   })
-  async listInvoices(
-    @Query() filters: InvoiceFilterDto,
-  ): Promise<InvoiceListResponseDto> {
-    try {
-      this.logger.debug('Buscando lista de faturas com filtros', filters);
-
-      const { invoices, total } = await this.invoiceService.findAll(filters);
-
-      return {
-        invoices,
-        total,
-      };
-    } catch (error) {
-      this.logger.error('Erro ao buscar lista de faturas', error);
-      throw new BadRequestException(
-        error instanceof Error ? error.message : 'Erro ao buscar faturas',
-      );
-    }
-  }
-
-  @Get(':id/pdf-url')
-  @ApiOperation({ summary: 'Obtém URL assinada para o PDF da fatura' })
-  @ApiResponse({
-    status: 200,
-    description: 'URL do PDF obtida com sucesso',
-    type: () => InvoicePdfUrlResponseDto,
-  })
-  async getInvoicePdfUrl(
+  async downloadInvoicePdf(
     @Param('id') id: string,
-    @Query('expiresIn') expiresIn?: number,
-  ): Promise<InvoicePdfUrlResponseDto> {
+    @Res() res: Response,
+  ): Promise<void> {
     try {
-      this.logger.debug(`Gerando URL assinada para PDF da fatura ${id}`);
+      this.logger.debug(`Iniciando download do PDF da fatura ${id}`);
 
-      const url = await this.invoiceService.getInvoicePdfUrl(id, expiresIn);
+      const invoice = await this.invoiceService.getInvoiceById(id);
+      if (!invoice) {
+        throw new BadRequestException('Fatura não encontrada');
+      }
 
-      return {
-        url,
-      };
+      if (!invoice.pdfUrl) {
+        throw new BadRequestException('Fatura não possui PDF associado');
+      }
+
+      const pdfBuffer = await this.invoiceService.downloadInvoicePdf(id);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="fatura-${id}.pdf"`,
+      );
+      res.send(pdfBuffer);
     } catch (error) {
-      this.logger.error(`Erro ao gerar URL do PDF da fatura ${id}`, error);
+      this.logger.error(`Erro ao baixar PDF da fatura ${id}`, error);
       throw new BadRequestException(
-        error instanceof Error ? error.message : 'Erro ao gerar URL do PDF',
+        error instanceof Error ? error.message : 'Erro ao baixar PDF da fatura',
       );
     }
   }

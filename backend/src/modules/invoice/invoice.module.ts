@@ -9,6 +9,9 @@ import { PdfLayoutService } from '../pdf/services/layout/pdf-layout.service';
 import { layouts } from './layouts';
 import { RepositoriesModule } from '@/infrastructure/database/prisma/repositories/repositories.module';
 import { BullModule } from '@nestjs/bull';
+import { CacheModule } from '@nestjs/cache-manager';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { redisStore } from 'cache-manager-redis-store';
 
 @Module({
   imports: [
@@ -19,6 +22,19 @@ import { BullModule } from '@nestjs/bull';
     EventEmitterModule.forRoot(),
     BullModule.registerQueue({
       name: 'invoice-processing',
+    }),
+    CacheModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        store: redisStore,
+        url: configService.get('redis.url'),
+        ttl: configService.get('cache.ttl'),
+        max: configService.get('cache.max'),
+        prefix: 'dashboard:',
+        database: 0,
+        password: configService.get('redis.password'),
+      }),
     }),
   ],
   controllers: [InvoiceController],
