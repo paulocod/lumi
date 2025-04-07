@@ -391,14 +391,15 @@ export class PdfStorageService {
 
   async getDirectPdfUrl(objectName: string): Promise<string> {
     try {
-      const endpoint = this.configService.get<string>('minio.endpoint');
       const port = this.configService.get<number>('minio.port');
       const useSSL = this.configService.get<boolean>('minio.useSSL');
       const protocol = useSSL ? 'https' : 'http';
 
       await this.minioClient.statObject(this.processedBucketName, objectName);
 
-      return `${protocol}://${endpoint}:${port}/${this.processedBucketName}/${objectName}`;
+      // Usa localhost para acessar o Minio externamente
+      const publicEndpoint = 'localhost';
+      return `${protocol}://${publicEndpoint}:${port}/${this.processedBucketName}/${objectName}`;
     } catch (error: unknown) {
       this.logger.error(
         'Erro ao gerar URL direta do PDF',
