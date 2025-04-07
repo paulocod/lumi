@@ -1,38 +1,40 @@
-import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../services/axios';
+import { useState, useCallback, ReactNode, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../services/axios";
+import { AxiosError } from "axios";
+import { AuthContext } from "../contexts/AuthContext";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'USER';
+  role: "ADMIN" | "USER";
 }
 
-interface AuthContextData {
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+interface ApiError {
+  message: string;
 }
-
-const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem("user");
     return storedUser ? JSON.parse(storedUser) : null;
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!localStorage.getItem('access_token') && !!localStorage.getItem('user');
+    return (
+      !!localStorage.getItem("access_token") && !!localStorage.getItem("user")
+    );
   });
+
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem("access_token");
+    const storedUser = localStorage.getItem("user");
     if (token && storedUser) {
       setIsAuthenticated(true);
       setUser(JSON.parse(storedUser));
@@ -42,47 +44,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    try {
-      const { data } = await api.post('/auth/login', { email, password });
-      const { access_token, user } = data;
+  const login = useCallback(
+    async (email: string, password: string) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const { data } = await api.post("/auth/login", { email, password });
+        const { access_token, user } = data;
 
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("user", JSON.stringify(user));
 
-      setUser(user);
-      setIsAuthenticated(true);
-      navigate('/');
-    } catch (error) {
-      console.error('Erro ao fazer login:', error);
-      throw error;
-    }
-  }, [navigate]);
+        setUser(user);
+        setIsAuthenticated(true);
+        navigate("/");
+      } catch (error) {
+        const axiosError = error as AxiosError<ApiError>;
+        const errorMessage =
+          axiosError.response?.data?.message || "Erro ao fazer login";
+        setError(errorMessage);
+        console.error("[useAuth] Erro ao fazer login:", errorMessage);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [navigate]
+  );
+
+  const register = useCallback(
+    async (name: string, email: string, password: string) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        await api.post("/auth/register", { name, email, password });
+      } catch (error) {
+        const axiosError = error as AxiosError<ApiError>;
+        setError(
+          axiosError.response?.data?.message || "Erro ao registrar usuário"
+        );
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
 
   const logout = useCallback(async () => {
     try {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
+      setIsLoading(true);
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
       setUser(null);
       setIsAuthenticated(false);
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
+      const axiosError = error as AxiosError<ApiError>;
+      setError(axiosError.response?.data?.message || "Erro ao fazer logout");
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   }, [navigate]);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        login,
+        logout,
+        register,
+        error,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
-  }
-  return context;
-} 

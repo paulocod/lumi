@@ -1,12 +1,12 @@
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuthHook";
 
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -26,9 +26,8 @@ export default function Login() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.email, data.password);
-      navigate('/');
     } catch (error) {
-      console.error('Erro ao fazer login:', error);
+      console.error("Erro ao fazer login:", error);
     }
   };
 
@@ -47,13 +46,16 @@ export default function Login() {
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-lumi-gray-700">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-lumi-gray-700"
+                >
                   Email
                 </label>
                 <input
                   id="email"
                   type="email"
-                  {...register('email')}
+                  {...register("email")}
                   className="mt-1 block w-full px-3 py-2 border border-lumi-gray-300 rounded-md shadow-sm placeholder-lumi-gray-400 focus:outline-none focus:ring-2 focus:ring-lumi-green-500 focus:border-lumi-green-500 text-sm"
                   placeholder="Seu email"
                 />
@@ -64,13 +66,16 @@ export default function Login() {
                 )}
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-lumi-gray-700">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-lumi-gray-700"
+                >
                   Senha
                 </label>
                 <input
                   id="password"
                   type="password"
-                  {...register('password')}
+                  {...register("password")}
                   className="mt-1 block w-full px-3 py-2 border border-lumi-gray-300 rounded-md shadow-sm placeholder-lumi-gray-400 focus:outline-none focus:ring-2 focus:ring-lumi-green-500 focus:border-lumi-green-500 text-sm"
                   placeholder="Sua senha"
                 />
@@ -86,7 +91,9 @@ export default function Login() {
               <div className="rounded-md bg-red-50 p-4">
                 <div className="flex">
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                    <h3 className="text-sm font-medium text-red-800">
+                      {error}
+                    </h3>
                   </div>
                 </div>
               </div>
@@ -98,8 +105,21 @@ export default function Login() {
                 disabled={isLoading}
                 className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-lumi-green-600 hover:bg-lumi-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lumi-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
               >
-                {isLoading ? 'Entrando...' : 'Entrar'}
+                {isLoading ? "Entrando..." : "Entrar"}
               </button>
+            </div>
+
+            <div className="text-center">
+              <p className="text-sm text-lumi-gray-600">
+                Não tem uma conta?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/register")}
+                  className="font-medium text-lumi-green-600 hover:text-lumi-green-500"
+                >
+                  Registre-se
+                </button>
+              </p>
             </div>
           </form>
         </div>

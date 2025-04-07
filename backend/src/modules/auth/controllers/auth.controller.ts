@@ -12,10 +12,10 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @ApiOperation({ summary: 'Registrar novo usuário' })
+  @ApiOperation({ summary: 'Registro de usuário' })
   @ApiResponse({
     status: 201,
-    description: 'Usuário registrado com sucesso',
+    description: 'Usuário registrado',
   })
   @ApiResponse({
     status: 400,
@@ -27,10 +27,10 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(LoginThrottlerGuard)
-  @ApiOperation({ summary: 'Realizar login' })
+  @ApiOperation({ summary: 'Login de usuário' })
   @ApiResponse({
     status: 200,
-    description: 'Login realizado com sucesso',
+    description: 'Login realizado',
   })
   @ApiResponse({
     status: 401,
@@ -38,21 +38,21 @@ export class AuthController {
   })
   @ApiResponse({
     status: 429,
-    description: 'Muitas tentativas de login',
+    description: 'Limite de tentativas excedido',
   })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
   @Post('refresh')
-  @ApiOperation({ summary: 'Renovar access token' })
+  @ApiOperation({ summary: 'Renovação de token' })
   @ApiResponse({
     status: 200,
-    description: 'Token renovado com sucesso',
+    description: 'Token renovado',
   })
   @ApiResponse({
     status: 401,
-    description: 'Token inválido ou expirado',
+    description: 'Token inválido',
   })
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto.refresh_token);
