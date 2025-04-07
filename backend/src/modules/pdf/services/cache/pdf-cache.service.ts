@@ -30,6 +30,7 @@ export class PdfCacheService {
   ) {
     this.ttl = this.configService.get<number>('pdf.cache.ttl') || 3600;
     this.prefix = this.configService.get<string>('cache.prefix') || 'cache:';
+    this.logger.debug(`PDF Cache Service inicializado com TTL: ${this.ttl}s`);
   }
 
   async getCachedExtraction(buffer: Buffer): Promise<CachedExtraction | null> {
@@ -37,6 +38,9 @@ export class PdfCacheService {
       const hash = this.generateHash(buffer);
       const key = `${this.prefix}pdf:${hash}`;
 
+      this.logger.debug(
+        `Verificando cache para hash: ${hash.substring(0, 8)}...`,
+      );
       const cached =
         await this.cacheManager.get<SerializedCachedExtraction>(key);
 
@@ -46,6 +50,7 @@ export class PdfCacheService {
       }
 
       this.logger.debug(`Cache hit para PDF: ${hash.substring(0, 8)}...`);
+      this.logger.debug(`Dados em cache: ${JSON.stringify(cached, null, 2)}`);
 
       return {
         hash: cached.hash,
@@ -70,6 +75,10 @@ export class PdfCacheService {
       const hash = this.generateHash(buffer);
       const key = `${this.prefix}pdf:${hash}`;
 
+      this.logger.debug(
+        `Salvando no cache para hash: ${hash.substring(0, 8)}...`,
+      );
+
       const serialized: SerializedCachedExtraction = {
         hash: extraction.hash,
         result: extraction.result,
@@ -82,8 +91,9 @@ export class PdfCacheService {
 
       await this.cacheManager.set(key, serialized, this.ttl);
       this.logger.debug(
-        `Cache atualizado para PDF: ${hash.substring(0, 8)}...`,
+        `Cache atualizado para PDF: ${hash.substring(0, 8)}... com TTL: ${this.ttl}s`,
       );
+      this.logger.debug(`Dados salvos: ${JSON.stringify(serialized, null, 2)}`);
     } catch (error: unknown) {
       this.logger.error(
         'Erro ao salvar no cache',
@@ -93,6 +103,13 @@ export class PdfCacheService {
   }
 
   generateHash(buffer: Buffer): string {
-    return createHash('sha256').update(buffer).digest('hex');
+    if (!Buffer.isBuffer(buffer)) {
+      this.logger.error('Buffer inválido fornecido para geração de hash');
+      throw new Error('Buffer inválido');
+    }
+
+    const hash = createHash('sha256').update(buffer).digest('hex');
+    this.logger.debug(`Hash gerado: ${hash.substring(0, 8)}...`);
+    return hash;
   }
 }

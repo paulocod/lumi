@@ -17,4 +17,11 @@ export interface IMinioClient {
     objectName: string,
     expires: number,
   ): Promise<string>;
+  statObject(bucketName: string, objectName: string): Promise<any>;
+  setBucketPolicy(bucketName: string, policy: string): Promise<void>;
+  listObjects(bucketName: string): AsyncIterableIterator<{
+    name: string;
+    lastModified: Date;
+    size: number;
+  }>;
 }

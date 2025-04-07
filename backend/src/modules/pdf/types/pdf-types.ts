@@ -63,7 +63,6 @@ export class PdfExtractionError extends Error {
   }
 }
 
-// Interface para registro de layouts
 export interface PdfLayoutRegistry {
   [key: string]: PdfLayout<any>;
 }

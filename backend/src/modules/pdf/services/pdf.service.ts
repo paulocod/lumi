@@ -159,9 +159,33 @@ export class PdfService {
     extractionResult: PdfExtractionResult<unknown>;
   }> {
     try {
+      if (options.useCache) {
+        const cached = await this.cacheService.getCachedExtraction(buffer);
+        if (cached) {
+          this.logger.debug(`Cache hit para PDF: ${filename}`);
+          const hash = this.cacheService.generateHash(buffer);
+          const storageKey = `cached/${hash}/${filename}`;
+
+          return {
+            storageKey,
+            extractionResult: {
+              data: cached.result,
+              confidence: cached.confidence,
+              metadata: {
+                numPages: 0,
+                layout: layoutName,
+                processingTime: 0,
+              },
+            },
+          };
+        }
+        this.logger.debug(`Cache miss para PDF: ${filename}`);
+      }
+
       const storageKey = await this.pdfStorageService.uploadPdf(
         buffer,
         filename,
+        'lumi-process-invoices',
       );
 
       const extractionResult = await this.extractData(
@@ -242,9 +266,21 @@ export class PdfService {
       this.logger.debug(
         `Gerando URL assinada para o PDF com chave: ${storageKey}`,
       );
+
+      let objectName = storageKey;
+      if (storageKey.includes('/')) {
+        const parts = storageKey.split('/');
+        objectName = parts[parts.length - 1];
+
+        if (objectName.includes('?')) {
+          objectName = objectName.split('?')[0];
+        }
+      }
+
       return await this.pdfStorageService.getPdfUrl(
-        storageKey,
-        expiresInSeconds?.toString(),
+        objectName,
+        'lumi-processed-invoices',
+        expiresInSeconds,
       );
     } catch (error) {
       this.logger.error('Erro ao gerar URL assinada', String(error));
@@ -257,23 +293,49 @@ export class PdfService {
     }
   }
 
-  /**
-   * Obtém um PDF do armazenamento
-   * @param storageKey Chave de armazenamento do PDF
-   * @returns Buffer contendo o PDF
-   */
   async getPdfFromStorage(storageKey: string): Promise<Buffer> {
     try {
       this.logger.debug(
         `Obtendo PDF do armazenamento com chave: ${storageKey}`,
       );
-      return await this.pdfStorageService.downloadPdf(storageKey);
+      return await this.pdfStorageService.downloadPdf(
+        storageKey,
+        'lumi-processed-invoices',
+      );
     } catch (error) {
       this.logger.error('Erro ao obter PDF do armazenamento', String(error));
       throw new PdfExtractionError([
         {
           code: 'PDF_DOWNLOAD_ERROR',
           message: 'Falha ao obter PDF do armazenamento',
+        },
+      ]);
+    }
+  }
+
+  async getDirectPdfUrl(storageKey: string): Promise<string> {
+    try {
+      this.logger.debug(
+        `Gerando URL direta para o PDF com chave: ${storageKey}`,
+      );
+
+      let objectName = storageKey;
+      if (storageKey.includes('/')) {
+        const parts = storageKey.split('/');
+        objectName = parts[parts.length - 1];
+
+        if (objectName.includes('?')) {
+          objectName = objectName.split('?')[0];
+        }
+      }
+
+      return await this.pdfStorageService.getDirectPdfUrl(objectName);
+    } catch (error) {
+      this.logger.error('Erro ao gerar URL direta', String(error));
+      throw new PdfExtractionError([
+        {
+          code: 'URL_GENERATION_ERROR',
+          message: 'Falha ao gerar URL direta para download do PDF',
         },
       ]);
     }

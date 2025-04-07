@@ -13,16 +13,12 @@ import { Job } from 'bull';
 import { PdfService } from '@/modules/pdf/services/pdf.service';
 import { PdfStorageService } from '@/modules/pdf/services/storage/pdf-storage.service';
 import { ConfigService } from '@nestjs/config';
-import { PdfProcessingError } from '@/shared/errors/application.errors';
 import { PrismaService } from 'prisma/prisma.service';
 import { LoggerService } from '@/config/logger';
 import { InvoiceService } from '@/modules/invoice/services/invoice.service';
-import { PdfSource } from '@/modules/pdf/types/pdf-types';
-import { Invoice } from '@/modules/invoice/entities/invoice.entity';
-import { InvoiceStatus } from '@/shared/enums/invoice-status.enum';
 
 interface InvoiceJobData {
-  pdf: PdfSource;
+  objectName: string;
   invoiceId?: string;
   layoutName: string;
 }
@@ -33,6 +29,7 @@ export class InvoiceQueueProcessor implements OnModuleInit {
   private readonly downloadTimeout: number;
   private readonly incomingBucket: string;
   private readonly processedBucket: string;
+  private readonly LAYOUT_NAME = 'CEMIG';
 
   constructor(
     private prisma: PrismaService,
@@ -91,73 +88,63 @@ export class InvoiceQueueProcessor implements OnModuleInit {
   }
 
   @Process('process-invoice')
-  async handleInvoiceProcessing(job: Job<InvoiceJobData>) {
-    this.customLogger.debug('=== Início do Processamento do Job ===');
-
+  async processInvoice(job: Job<InvoiceJobData>) {
     try {
-      let pdfBuffer: Buffer;
-      let processedPdfKey: string | undefined;
+      this.logger.debug(
+        `Iniciando processamento do PDF ${job.data.objectName}`,
+      );
 
-      // 1. Se o PDF já estiver em um bucket, mova-o para o bucket de processados
-      if (job.data.pdf.type === 'bucket' && job.data.pdf.key) {
-        processedPdfKey = await this.pdfStorageService.movePdfBetweenBuckets(
-          job.data.pdf.key,
-          this.incomingBucket,
-          this.processedBucket,
-          `${job.data.invoiceId || Date.now()}-${job.data.pdf.key}`,
-        );
-        pdfBuffer = await this.pdfStorageService.downloadPdf(
-          processedPdfKey,
-          this.processedBucket,
-        );
-      } else if (job.data.pdf.type === 'buffer') {
-        if (Buffer.isBuffer(job.data.pdf.data)) {
-          pdfBuffer = job.data.pdf.data;
-        } else if (typeof job.data.pdf.data === 'string') {
-          pdfBuffer = Buffer.from(job.data.pdf.data, 'utf-8');
-        } else {
-          pdfBuffer = Buffer.from(job.data.pdf.data);
-        }
+      const pdfBuffer = await this.pdfStorageService.getPdfFromProcessBucket(
+        job.data.objectName,
+      );
 
-        // Upload do PDF para o bucket de processados
-        processedPdfKey = await this.pdfStorageService.uploadPdf(
-          pdfBuffer,
-          `invoice-${job.data.invoiceId || Date.now()}.pdf`,
-          this.processedBucket,
-        );
-      } else {
-        throw new Error('Tipo de PDF não suportado');
-      }
-
-      // 2. Extrair dados do PDF
-      const extractionResult = await this.pdfService.extractData<
-        Partial<Invoice>
-      >(pdfBuffer, job.data.layoutName, {
+      await this.pdfService.extractData(pdfBuffer, job.data.layoutName, {
         useCache: true,
         validateResult: true,
       });
 
-      // 3. Atualizar ou criar a fatura com os dados extraídos
-      const invoice = await this.invoiceService.updateInvoice(
-        job.data.invoiceId,
+      const invoice = await this.invoiceService.extractInvoiceData(
         {
-          ...extractionResult.data,
-          pdfUrl: processedPdfKey,
-          status: InvoiceStatus.COMPLETED,
+          type: 'buffer',
+          data: pdfBuffer,
         },
+        job.data.invoiceId,
       );
 
-      this.emitEvent('invoice.processed', {
-        invoiceId: invoice.id,
-        status: invoice.status,
-      });
+      if (!invoice.id) {
+        throw new Error('Fatura criada sem ID');
+      }
 
-      return invoice;
+      await this.pdfStorageService.moveToProcessed(
+        job.data.objectName,
+        pdfBuffer,
+      );
+
+      await this.invoiceService.updateInvoicePdfUrl(
+        invoice.id,
+        job.data.objectName,
+      );
+
+      this.logger.debug(
+        `PDF ${job.data.objectName} processado com sucesso. Invoice ID: ${invoice.id}`,
+      );
+
+      return {
+        status: 'COMPLETED',
+        invoiceId: invoice.id,
+        pdfUrl: job.data.objectName,
+      };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erro desconhecido';
-      this.logger.error('Erro no processamento da fatura:', errorMessage);
-      throw new PdfProcessingError(errorMessage);
+      this.logger.error(
+        `Erro ao processar PDF ${job.data.objectName}`,
+        error instanceof Error ? error.message : String(error),
+      );
+
+      this.logger.debug(
+        `Mantendo PDF ${job.data.objectName} no bucket de processamento para reprocessamento futuro`,
+      );
+
+      throw error;
     }
   }
 
