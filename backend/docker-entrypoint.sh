@@ -27,8 +27,11 @@ wait_for_service minio 9000 "MinIO"
 
 echo "Todos os serviços estão prontos!"
 
-echo "Executando migrações do Prisma..."
-npx prisma migrate deploy
+echo "Gerando cliente Prisma..."
+npx prisma generate
+
+echo "Sincronizando schema com o banco..."
+npx prisma db push --accept-data-loss
 
 echo "Executando seed do banco de dados..."
 npx prisma db seed

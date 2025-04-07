@@ -82,159 +82,125 @@ frontend/
 - npm ou yarn
 - Git
 
-## 🔧 Configuração do Ambiente
+## 🚀 Executando o Projeto
 
-### 1. Clone o Repositório
+### Usando Docker Compose (Recomendado)
+
+1. Clone o repositório:
 ```bash
 git clone [URL_DO_REPOSITÓRIO]
 cd lumi
 ```
 
-### 2. Configuração do Backend
-
-1. Entre na pasta do backend:
+2. Configure o ambiente:
 ```bash
 cd backend
-```
-
-2. Copie o arquivo de ambiente de exemplo:
-```bash
 cp .env.example .env
-```
-
-3. Configure as variáveis de ambiente no arquivo `.env`:
-- `POSTGRES_USER`: Usuário do PostgreSQL
-- `POSTGRES_PASSWORD`: Senha do PostgreSQL
-- `POSTGRES_DB`: Nome do banco de dados
-- `POSTGRES_PORT`: Porta do PostgreSQL (padrão: 5432)
-- `REDIS_PORT`: Porta do Redis (padrão: 6379)
-- `MINIO_ACCESS_KEY`: Chave de acesso do MinIO
-- `MINIO_SECRET_KEY`: Chave secreta do MinIO
-- `MINIO_PORT`: Porta do MinIO (padrão: 9000)
-- `MINIO_CONSOLE_PORT`: Porta do console do MinIO (padrão: 9001)
-- `JAEGER_UI_PORT`: Porta da interface do Jaeger (padrão: 16686)
-- `BACKEND_PORT`: Porta do backend (padrão: 3001)
-- `JWT_SECRET`: Chave secreta para JWT
-- `JWT_EXPIRATION`: Tempo de expiração do JWT
-
-4. Instale as dependências e configure o banco de dados:
-```bash
-npm install
-npm run db:setup
-```
-
-Este comando irá:
-- Gerar o cliente Prisma
-- Sincronizar o banco de dados com o schema
-- Popular o banco com dados iniciais
-
-### 3. Configuração do Frontend
-
-1. Entre na pasta do frontend:
-```bash
-cd frontend
-```
-
-2. Instale as dependências:
-```bash
 npm install
 ```
 
-## 🚀 Executando o Projeto
-
-### Usando Docker Compose (Recomendado)
-
-1. Na raiz do projeto, execute:
+3. Construa e inicie os containers:
 ```bash
-cd backend
-npm install
+# Construir as imagens
+docker-compose build --no-cache
+
+# Iniciar os containers
 docker-compose up -d
 ```
 
-2. Inicie o frontend:
+4. Aguarde todos os serviços iniciarem (você pode acompanhar os logs):
 ```bash
-cd frontend
-npm run dev
+docker-compose logs -f
 ```
 
-## 📊 Acessando os Serviços
+O processo de inicialização irá:
+- Aguardar todos os serviços (PostgreSQL, Redis, MinIO) estarem prontos
+- Gerar o cliente Prisma
+- Criar as tabelas no banco de dados
+- Popular o banco com dados iniciais
+- Iniciar a aplicação
+
+### Possíveis Problemas e Soluções
+
+Se encontrar erros durante a inicialização, siga estes passos:
+
+1. Pare todos os containers e remova os volumes:
+```bash
+docker-compose down -v
+```
+
+2. Reconstrua as imagens sem cache:
+```bash
+docker-compose build --no-cache
+```
+
+3. Inicie novamente:
+```bash
+docker-compose up -d
+```
+
+4. Verifique os logs para identificar possíveis erros:
+```bash
+# Ver todos os logs
+docker-compose logs -f
+
+# Ver logs de um serviço específico
+docker-compose logs -f backend
+```
+
+### Acessando os Serviços
+
+Após a inicialização bem-sucedida, você pode acessar:
 
 - **Backend API**: http://localhost:3001
-- **Frontend**: http://localhost:5173
+  - Documentação (Swagger): http://localhost:3001/api
+  - Credenciais padrão:
+    - Email: `admin@example.com`
+    - Senha: `admin@123`
+
 - **MinIO Console**: http://localhost:9001
-- **Jaeger UI**: http://localhost:16686
-
-## 🧪 Testes
-
-### Backend
-```bash
-cd backend
-npm run test
-```
-
-### Frontend
-```bash
-cd frontend
-npm run test
-```
-
-## 📝 Documentação da API
-
-A documentação da API está disponível em:
-- Swagger UI: http://localhost:3001/api
-
-## 🔍 Monitoramento e Observabilidade
-
-- **Jaeger**: Acesse http://localhost:16686 para visualizar os traces
-- **Logs**: Os logs do backend estão disponíveis em `backend/logs/`
-
-## 💾 Armazenamento
-
-- **MinIO**: Sistema de armazenamento de objetos
-  - Console: http://localhost:9001
-  - Credenciais de acesso:
-    - Usuário: `lumi`
-    - Senha: `lumi@1234`
-  - As credenciais também podem ser configuradas no arquivo `.env` do backend
-
-## 🔐 Segurança
-
-- Autenticação via JWT
-- Rate limiting configurável
-- CORS configurável
-- Validação de entrada de dados
-- Sanitização de dados
-
-## 🤝 Contribuindo
-
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto está sob a licença [MIT](LICENSE).
-
-## 🔑 Credenciais de Acesso
-
-### Plataforma Web
-- **URL**: http://localhost:5173
-- **Credenciais de Acesso**:
-  - Email: `admin@example.com`
-  - Senha: `admin@123`
-
-### API Backend
-- **URL**: http://localhost:3001
-- **Documentação**: http://localhost:3001/api
-- Autenticação via JWT (Bearer Token)
-
-### MinIO (Armazenamento)
-- **Console**: http://localhost:9001
-- **Credenciais**:
   - Usuário: `lumi`
   - Senha: `lumi@1234`
 
-### Jaeger (Monitoramento)
-- **URL**: http://localhost:16686 
+- **Jaeger UI**: http://localhost:16686
+
+### Comandos Úteis
+
+1. Verificar status dos containers:
+```bash
+docker-compose ps
+```
+
+2. Reiniciar um serviço específico:
+```bash
+docker-compose restart [serviço]
+# Exemplo: docker-compose restart backend
+```
+
+3. Ver logs em tempo real:
+```bash
+docker-compose logs -f
+```
+
+4. Acessar o shell de um container:
+```bash
+docker-compose exec [serviço] sh
+# Exemplo: docker-compose exec backend sh
+```
+
+5. Parar todos os serviços:
+```bash
+docker-compose down
+```
+
+### Volumes e Persistência
+
+Os dados são persistidos nos seguintes volumes Docker:
+- `postgres_data`: Banco de dados PostgreSQL
+- `redis_data`: Cache Redis
+- `minio_data`: Arquivos armazenados no MinIO
+
+Para remover todos os dados e começar do zero:
+```bash
+docker-compose down -v
+```
