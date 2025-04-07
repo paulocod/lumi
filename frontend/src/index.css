@@ -36,7 +36,7 @@
 
 /* Estilos básicos */
 :root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -47,13 +47,13 @@
 
 a {
   font-weight: 500;
-  color: theme('colors.lumi-green.600');
+  color: theme("colors.lumi-green.600");
   text-decoration: none;
   transition: color 0.2s ease-in-out;
 }
 
 a:hover {
-  color: theme('colors.lumi-green.700');
+  color: theme("colors.lumi-green.700");
 }
 
 h1 {

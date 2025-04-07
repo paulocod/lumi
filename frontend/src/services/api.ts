@@ -1,16 +1,12 @@
-import { api } from './axios';
+import { api } from "./axios";
 import type {
   Invoice,
   InvoiceFilters,
   InvoiceUploadResponse,
   InvoiceStatusResponse,
-  InvoicePdfUrlResponse
-} from '../types/invoice';
-import type {
-  EnergyData,
-  FinancialData,
-  DashboardResponse
-} from '../types/dashboard';
+  InvoicePdfUrlResponse,
+} from "../types/invoice";
+import type { DashboardResponse } from "../types/dashboard";
 
 interface PaginatedResponse<T> {
   invoices: T[];
@@ -18,7 +14,9 @@ interface PaginatedResponse<T> {
 }
 
 export const invoiceService = {
-  getInvoices: async (filters?: InvoiceFilters & { page?: number; limit?: number }) => {
+  getInvoices: async (
+    filters?: InvoiceFilters & { page?: number; limit?: number }
+  ) => {
     const params: Record<string, string | number> = {};
 
     if (filters?.clientNumber) {
@@ -45,34 +43,63 @@ export const invoiceService = {
       params.limit = filters.limit;
     }
 
-    const { data } = await api.get<PaginatedResponse<Invoice>>('/invoices', { params });
+    const { data } = await api.get<PaginatedResponse<Invoice>>("/invoices", {
+      params,
+    });
     return data;
   },
 
   uploadInvoice: async (file: File): Promise<InvoiceUploadResponse> => {
     const formData = new FormData();
-    formData.append('file', file);
-    const { data } = await api.post<InvoiceUploadResponse>('/invoices/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    formData.append("file", file);
+    const { data } = await api.post<InvoiceUploadResponse>(
+      "/invoices/upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
     return data;
   },
 
-  getInvoiceStatus: async (invoiceId: string): Promise<InvoiceStatusResponse> => {
-    const { data } = await api.get<InvoiceStatusResponse>(`/invoices/${invoiceId}/status`);
+  getInvoiceStatus: async (
+    invoiceId: string
+  ): Promise<InvoiceStatusResponse> => {
+    const { data } = await api.get<InvoiceStatusResponse>(
+      `/invoices/${invoiceId}/status`
+    );
     return data;
   },
 
-  getInvoicePdfUrl: async (invoiceId: string, expiresIn?: number): Promise<InvoicePdfUrlResponse> => {
+  getInvoicePdfUrl: async (
+    invoiceId: string,
+    expiresIn?: number
+  ): Promise<InvoicePdfUrlResponse> => {
     const params = expiresIn ? { expiresIn } : undefined;
-    const { data } = await api.get<InvoicePdfUrlResponse>(`/invoices/${invoiceId}/pdf-url`, { params });
+    const { data } = await api.get<InvoicePdfUrlResponse>(
+      `/invoices/${invoiceId}/pdf-url`,
+      { params }
+    );
     return data;
   },
 
-  reprocessInvoice: async (invoiceId: string): Promise<InvoiceUploadResponse> => {
-    const { data } = await api.post<InvoiceUploadResponse>(`/invoices/${invoiceId}/reprocess`);
+  getInvoiceDirectPdfUrl: async (
+    invoiceId: string
+  ): Promise<InvoicePdfUrlResponse> => {
+    const { data } = await api.get<InvoicePdfUrlResponse>(
+      `/invoices/${invoiceId}/pdf-direct-url`
+    );
+    return data;
+  },
+
+  reprocessInvoice: async (
+    invoiceId: string
+  ): Promise<InvoiceUploadResponse> => {
+    const { data } = await api.post<InvoiceUploadResponse>(
+      `/invoices/${invoiceId}/reprocess`
+    );
     return data;
   },
 };
@@ -80,8 +107,8 @@ export const invoiceService = {
 export const dashboardService = {
   getDashboardData: async (filters?: {
     clientNumber?: string;
-    startDate?: Date;
-    endDate?: Date;
+    startDate?: Date | string;
+    endDate?: Date | string;
   }): Promise<DashboardResponse> => {
     const params: Record<string, string> = {};
 
@@ -90,49 +117,72 @@ export const dashboardService = {
     }
 
     if (filters?.startDate) {
-      params.startDate = filters.startDate.toISOString();
+      params.startDate =
+        typeof filters.startDate === "string"
+          ? filters.startDate
+          : filters.startDate.toISOString().split("T")[0];
     }
 
     if (filters?.endDate) {
-      params.endDate = filters.endDate.toISOString();
+      params.endDate =
+        typeof filters.endDate === "string"
+          ? filters.endDate
+          : filters.endDate.toISOString().split("T")[0];
     }
 
-    const { data } = await api.get<DashboardResponse>('/dashboard', { params });
-    return data;
+    try {
+      const { data } = await api.get<DashboardResponse>("/dashboard", {
+        params,
+      });
+
+      return data;
+    } catch (error) {
+      console.error(
+        "[dashboardService] Erro ao buscar dados do dashboard:",
+        error
+      );
+      throw error;
+    }
   },
 };
 
 export const authService = {
   login: async (email: string, password: string) => {
-    const { data } = await api.post('/auth/login', { email, password });
+    const { data } = await api.post("/auth/login", { email, password });
     if (data.access_token) {
-      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem("access_token", data.access_token);
     }
     if (data.refresh_token) {
-      localStorage.setItem('refresh_token', data.refresh_token);
+      localStorage.setItem("refresh_token", data.refresh_token);
     }
     return data;
   },
 
   register: async (email: string, password: string, name: string) => {
-    const { data } = await api.post('/auth/register', { email, password, name });
+    const { data } = await api.post("/auth/register", {
+      email,
+      password,
+      name,
+    });
     return data;
   },
 
   refreshToken: async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) {
-      throw new Error('Refresh token não encontrado');
+      throw new Error("Refresh token não encontrado");
     }
-    const { data } = await api.post('/auth/refresh', { refresh_token: refreshToken });
+    const { data } = await api.post("/auth/refresh", {
+      refresh_token: refreshToken,
+    });
     if (data.access_token) {
-      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem("access_token", data.access_token);
     }
     return data;
   },
 
   logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
   },
 };

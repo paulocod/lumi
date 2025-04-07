@@ -1,14 +1,15 @@
-import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { Layout } from './components/Layout';
-import { useAuth } from './hooks/useAuth';
+import { lazy, Suspense } from "react";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { Layout } from "./components/Layout";
+import { useAuth } from "./hooks/useAuthHook";
 
-// Lazy loading para as páginas
-const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
-const Invoices = lazy(() => import('./pages/Invoices'));
-const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() =>
+  import("./pages/Dashboard").then((module) => ({ default: module.Dashboard }))
+);
+const Invoices = lazy(() => import("./pages/Invoices"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
 
-// Componente de loading para o Suspense
 function LoadingFallback() {
   return (
     <div className="flex items-center justify-center h-screen">
@@ -17,14 +18,13 @@ function LoadingFallback() {
   );
 }
 
-// Componente para proteger rotas
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -33,18 +33,22 @@ export function AppRoutes() {
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
-        
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Layout>
-              <Outlet />
-            </Layout>
-          </ProtectedRoute>
-        }>
+        <Route path="/register" element={<Register />} />
+
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Outlet />
+              </Layout>
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="invoices" element={<Invoices />} />
         </Route>
-        
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
