@@ -2,6 +2,12 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class EnergyDataDto {
   @ApiProperty({
+    description: 'Número do cliente',
+    example: '7005400387',
+  })
+  clientNumber: string;
+
+  @ApiProperty({
     description: 'Consumo de Energia Elétrica (kWh)',
     example: 526,
   })
@@ -22,6 +28,12 @@ export class EnergyDataDto {
 
 export class FinancialDataDto {
   @ApiProperty({
+    description: 'Número do cliente',
+    example: '7005400387',
+  })
+  clientNumber: string;
+
+  @ApiProperty({
     description: 'Valor Total sem GD (R$)',
     example: 502.35,
   })
@@ -41,6 +53,12 @@ export class FinancialDataDto {
 }
 
 export class DashboardSummaryDto {
+  @ApiProperty({
+    description: 'Número do cliente',
+    example: '7005400387',
+  })
+  clientNumber: string;
+
   @ApiProperty({
     description: 'Total de consumo de energia elétrica (kWh)',
     example: 5260,

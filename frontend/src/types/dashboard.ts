@@ -46,4 +46,4 @@ export interface SummaryData {
   totalValueWithoutGD: number;
   totalGdSavings: number;
   savingsPercentage: number;
-} 
+}

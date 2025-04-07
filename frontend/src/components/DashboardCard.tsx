@@ -1,4 +1,5 @@
-import { ReactNode, memo } from 'react';
+import { ReactNode, memo } from "react";
+import { TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
 
 interface DashboardCardProps {
   title: string;
@@ -10,6 +11,7 @@ interface DashboardCardProps {
     value: number;
     isPositive: boolean;
     label: string;
+    noData?: boolean;
   };
 }
 
@@ -35,9 +37,38 @@ export const DashboardCard = memo(function DashboardCard({
             {formatValue(value)}
           </p>
           {trend && (
-            <p className="mt-1 text-sm text-lumi-gray-500">
-              {trend.isPositive ? '+' : '-'}{trend.value}% {trend.label}
-            </p>
+            <div className="mt-1 flex items-center text-sm">
+              {trend.noData ? (
+                <>
+                  <Info className="h-4 w-4 text-gray-500 mr-1" />
+                  <span className="text-gray-600">
+                    Dados insuficientes para comparação
+                  </span>
+                </>
+              ) : (
+                <>
+                  {trend.value > 0 ? (
+                    <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                  ) : trend.value < 0 ? (
+                    <TrendingDown className="h-4 w-4 text-red-500 mr-1" />
+                  ) : (
+                    <Minus className="h-4 w-4 text-gray-500 mr-1" />
+                  )}
+                  <span
+                    className={
+                      trend.value > 0
+                        ? "text-green-600"
+                        : trend.value < 0
+                        ? "text-red-600"
+                        : "text-gray-600"
+                    }
+                  >
+                    {trend.value > 0 ? "+" : ""}
+                    {trend.value}% em relação ao mês anterior
+                  </span>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>

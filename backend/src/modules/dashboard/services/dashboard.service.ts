@@ -2,8 +2,14 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { IInvoiceRepository } from '@/modules/invoice/repositories/invoice.repository.interface';
-import { DashboardDataDto, DashboardSummaryDto } from '../dtos/dashboard.dto';
+import {
+  DashboardDataDto,
+  DashboardSummaryDto,
+  EnergyDataDto,
+  FinancialDataDto,
+} from '../dtos/dashboard.dto';
 import { PrismaInvoiceRepository } from '@/modules/invoice/repositories/invoice.repository';
+import { InvoiceStatus } from '@/shared/enums/invoice-status.enum';
 
 @Injectable()
 export class DashboardService {
@@ -15,57 +21,81 @@ export class DashboardService {
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
-  async getAllDashboardData(
-    clientNumber?: string,
-    startDate?: Date,
-    endDate?: Date,
-  ): Promise<DashboardDataDto> {
+  async getAllDashboardData(clientNumber?: string): Promise<DashboardDataDto> {
     this.logger.debug(
       `Buscando todos os dados do dashboard para cliente: ${clientNumber || 'todos'}`,
     );
 
-    const cacheKey = `dashboard:all:${clientNumber}:${startDate?.toISOString()}:${endDate?.toISOString()}`;
+    const cacheKey = `dashboard:all:${clientNumber || 'all'}`;
+    const cachedData = await this.cacheManager.get<DashboardDataDto>(cacheKey);
 
-    const cached = await this.cacheManager.get<DashboardDataDto>(cacheKey);
-    if (cached) {
-      this.logger.debug('Todos os dados do dashboard encontrados no cache');
-      return cached;
+    if (cachedData) {
+      this.logger.debug(
+        `Dados do dashboard encontrados no cache para ${cacheKey}`,
+      );
+      return cachedData;
     }
 
     this.logger.debug(
-      'Dados do dashboard não encontrados no cache, buscando do banco',
+      `Dados do dashboard não encontrados no cache para ${cacheKey}, buscando do banco de dados`,
     );
 
-    // Buscar faturas do banco de dados
     const { invoices } = await this.invoiceRepository.findAll({
       clientNumber,
-      startDate,
-      endDate,
+      status: InvoiceStatus.COMPLETED,
     });
 
     this.logger.debug(
       `Processando ${invoices.length} faturas para o dashboard`,
     );
 
-    // Processar dados de energia
-    const energyData = invoices.map((invoice) => ({
-      electricityConsumption:
-        invoice.electricityQuantity + invoice.sceeQuantity,
-      compensatedEnergy: invoice.compensatedEnergyQuantity,
-      month: invoice.referenceMonth,
-    }));
+    const energyDataMap = new Map<string, EnergyDataDto>();
+    invoices.forEach((invoice) => {
+      const monthKey = invoice.referenceMonth.toISOString().substring(0, 10);
+      const currentData = energyDataMap.get(monthKey) || {
+        electricityConsumption: 0,
+        compensatedEnergy: 0,
+        month: invoice.referenceMonth,
+        clientNumber: invoice.clientNumber,
+      };
 
-    // Processar dados financeiros
-    const financialData = invoices.map((invoice) => ({
-      totalWithoutGD:
-        invoice.electricityValue +
-        invoice.sceeValue +
-        invoice.publicLightingValue,
-      gdSavings: Math.abs(invoice.compensatedEnergyValue),
-      month: invoice.referenceMonth,
-    }));
+      energyDataMap.set(monthKey, {
+        electricityConsumption:
+          currentData.electricityConsumption +
+          invoice.electricityQuantity +
+          invoice.sceeQuantity,
+        compensatedEnergy:
+          currentData.compensatedEnergy + invoice.compensatedEnergyQuantity,
+        month: invoice.referenceMonth,
+        clientNumber: invoice.clientNumber,
+      });
+    });
+    const energyData = Array.from(energyDataMap.values());
 
-    // Calcular resumo
+    const financialDataMap = new Map<string, FinancialDataDto>();
+    invoices.forEach((invoice) => {
+      const monthKey = invoice.referenceMonth.toISOString().substring(0, 10);
+      const currentData = financialDataMap.get(monthKey) || {
+        totalWithoutGD: 0,
+        gdSavings: 0,
+        month: invoice.referenceMonth,
+        clientNumber: invoice.clientNumber,
+      };
+
+      financialDataMap.set(monthKey, {
+        totalWithoutGD:
+          currentData.totalWithoutGD +
+          invoice.electricityValue +
+          invoice.sceeValue +
+          invoice.publicLightingValue,
+        gdSavings:
+          currentData.gdSavings + Math.abs(invoice.compensatedEnergyValue),
+        month: invoice.referenceMonth,
+        clientNumber: invoice.clientNumber,
+      });
+    });
+    const financialData = Array.from(financialDataMap.values());
+
     const totalElectricityConsumption = invoices.reduce(
       (acc, invoice) =>
         acc + invoice.electricityQuantity + invoice.sceeQuantity,
@@ -95,6 +125,7 @@ export class DashboardService {
       totalWithoutGD > 0 ? (totalGDSavings / totalWithoutGD) * 100 : 0;
 
     const summary: DashboardSummaryDto = {
+      clientNumber: clientNumber || 'Todos os clientes',
       totalElectricityConsumption,
       totalCompensatedEnergy,
       totalWithoutGD,
@@ -108,11 +139,15 @@ export class DashboardService {
       summary,
     };
 
-    await this.cacheManager.set(cacheKey, data, 1800 * 1000);
-    this.logger.debug(
-      'Todos os dados do dashboard processados e armazenados no cache',
-    );
+    await this.cacheManager.set(cacheKey, data, 3600); // TTL de 1 hora
+    this.logger.debug(`Dados do dashboard salvos no cache para ${cacheKey}`);
 
     return data;
+  }
+
+  async invalidateDashboardCache(clientNumber?: string): Promise<void> {
+    const cacheKey = `dashboard:all:${clientNumber || 'all'}`;
+    await this.cacheManager.del(cacheKey);
+    this.logger.debug(`Cache do dashboard invalidado para ${cacheKey}`);
   }
 }
