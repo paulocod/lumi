@@ -11,7 +11,6 @@ import {
   FileTypeValidator,
   BadRequestException,
   Logger,
-  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InvoiceService } from '../services/invoice.service';
@@ -29,7 +28,6 @@ import { InvoiceStatusResponseDto } from '../dtos/invoice-status-response.dto';
 import { InvoiceListResponseDto } from '../dtos/invoice-list-response.dto';
 import { InvoiceFilterDto } from '../dtos/invoice-filter.dto';
 import { UnprocessedPdfListDto } from '@/modules/pdf/dtos/unprocessed-pdf.dto';
-import { Response } from 'express';
 import { PdfStorageService } from '@/modules/pdf/services/storage/pdf-storage.service';
 
 @ApiTags('invoices')
@@ -235,20 +233,22 @@ export class InvoiceController {
   @ApiOperation({ summary: 'Download do PDF da fatura' })
   @ApiResponse({
     status: 200,
-    description: 'PDF da fatura',
+    description: 'URL do PDF da fatura',
     content: {
-      'application/pdf': {
+      'application/json': {
         schema: {
-          type: 'string',
-          format: 'binary',
+          type: 'object',
+          properties: {
+            url: {
+              type: 'string',
+              description: 'URL do PDF da fatura',
+            },
+          },
         },
       },
     },
   })
-  async downloadInvoicePdf(
-    @Param('id') id: string,
-    @Res() res: Response,
-  ): Promise<void> {
+  async downloadInvoicePdf(@Param('id') id: string): Promise<{ url: string }> {
     try {
       this.logger.debug(`Iniciando download do PDF da fatura ${id}`);
 
@@ -261,14 +261,7 @@ export class InvoiceController {
         throw new BadRequestException('Fatura não possui PDF associado');
       }
 
-      const pdfBuffer = await this.invoiceService.downloadInvoicePdf(id);
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="fatura-${id}.pdf"`,
-      );
-      res.send(pdfBuffer);
+      return { url: invoice.pdfUrl };
     } catch (error) {
       this.logger.error(`Erro ao baixar PDF da fatura ${id}`, error);
       throw new BadRequestException(
